@@ -1,0 +1,201 @@
+// World Cup 2026 office prediction pool — data model.
+// Everything is persisted in Postgres. All datetimes are stored in UTC.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Tournament structure
+// ---------------------------------------------------------------------------
+
+// A national team. `code` is the FIFA 3-letter code (e.g. BRA) when known.
+// Teams may not exist yet for some knockout slots — those matches use the
+// *Label fields on Match instead (e.g. "Winner Group A").
+model Team {
+  id    String  @id @default(cuid())
+  name  String
+  code  String? @unique
+  group String? // group letter "A".."L", null for teams added later
+  flag  String? // emoji flag, best-effort
+
+  homeMatches   Match[]            @relation("homeTeam")
+  awayMatches   Match[]            @relation("awayTeam")
+  bracketPicks  BracketPrediction[]
+  championPicks BonusPrediction[]  @relation("championTeam")
+  runnerUpPicks BonusPrediction[]  @relation("runnerUpTeam")
+}
+
+enum Stage {
+  GROUP
+  R32 // Round of 32 (new for the 48-team format)
+  R16
+  QF
+  SF
+  THIRD_PLACE
+  FINAL
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+}
+
+model Match {
+  id         String      @id @default(cuid())
+  externalId String      @unique // id from the data source, for idempotent sync
+  number     Int         @default(0) // canonical match number 1..104 (for bracket wiring)
+  stage      Stage
+  group      String? // group letter for GROUP-stage matches
+  matchday   Int? // 1..3 within the group stage, for ordering
+  kickoff    DateTime // UTC
+  status     MatchStatus @default(SCHEDULED)
+
+  homeTeamId String?
+  awayTeamId String?
+  homeTeam   Team?   @relation("homeTeam", fields: [homeTeamId], references: [id])
+  awayTeam   Team?   @relation("awayTeam", fields: [awayTeamId], references: [id])
+
+  // Placeholder labels when the team is not yet known (knockout slots).
+  homeLabel String?
+  awayLabel String?
+
+  homeScore Int?
+  awayScore Int?
+
+  // Winning team id for knockout matches (handles penalty shootouts, where the
+  // fullTime score is a draw). Null for draws / unplayed.
+  winnerTeamId String?
+
+  predictions Prediction[]
+
+  @@index([stage])
+  @@index([kickoff])
+}
+
+// ---------------------------------------------------------------------------
+// Players & predictions
+// ---------------------------------------------------------------------------
+
+model Player {
+  id        String   @id @default(cuid())
+  name      String
+  nameKey   String   @unique // lower-cased name, for case-insensitive uniqueness
+  pinHash   String // bcrypt hash of the passcode (light tamper-protection only)
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // The match this player has "jokered" (doubled stakes). One per player.
+  jokerMatchId String?
+
+  predictions     Prediction[]
+  bracketPicks    BracketPrediction[]
+  bonusPrediction BonusPrediction?
+}
+
+// A predicted scoreline for one match.
+model Prediction {
+  id        String   @id @default(cuid())
+  playerId  String
+  matchId   String
+  homeScore Int
+  awayScore Int
+  points    Int      @default(0) // computed when the match finishes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, matchId])
+}
+
+// Which teams a player thinks will *reach* a given knockout round.
+// Scored by comparing against the teams that actually appear in that round.
+enum BracketRound {
+  R16
+  QF
+  SF
+  FINAL
+  CHAMPION
+}
+
+model BracketPrediction {
+  id       String       @id @default(cuid())
+  playerId String
+  round    BracketRound
+  teamId   String
+  points   Int          @default(0)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, round, teamId])
+}
+
+// One row per player for the tournament-long bonus picks.
+model BonusPrediction {
+  id       String @id @default(cuid())
+  playerId String @unique
+
+  championTeamId String?
+  runnerUpTeamId String?
+  goldenBoot     String? // predicted top scorer, free text (matched case-insensitively)
+
+  championPoints   Int @default(0)
+  runnerUpPoints   Int @default(0)
+  goldenBootPoints Int @default(0)
+
+  player       Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  championTeam Team?  @relation("championTeam", fields: [championTeamId], references: [id])
+  runnerUpTeam Team?  @relation("runnerUpTeam", fields: [runnerUpTeamId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Settings — a single row (id = 1) holding the admin-editable scoring config.
+// ---------------------------------------------------------------------------
+
+model Settings {
+  id Int @id @default(1)
+
+  // Match scoring (Classic 3/1).
+  pointsExact  Int @default(3)
+  pointsResult Int @default(1)
+
+  // Knockout-advancement bonus, per correct team reaching a round.
+  bonusR16      Int @default(1)
+  bonusQF       Int @default(2)
+  bonusSF       Int @default(3)
+  bonusFinal    Int @default(4)
+  bonusChampion Int @default(6)
+
+  // Tournament-long bonuses.
+  bonusTournamentChampion Int @default(10)
+  bonusRunnerUp           Int @default(5)
+  bonusGoldenBoot         Int @default(8)
+
+  // Joker / double-down: your one jokered match scores ×multiplier if you get
+  // points, but costs you `jokerPenalty` if it flops (0 base points).
+  jokerMultiplier Int @default(2)
+  jokerPenalty    Int @default(3)
+
+  // First kickoff overall — bonus picks (champion/runner-up/golden boot) lock here.
+  tournamentStart DateTime?
+
+  // Bracket picks are fillable only between these two: they OPEN once the group
+  // stage is over (so you pick knockouts knowing who qualified) and LOCK when the
+  // first knockout match kicks off.
+  groupStageEnd DateTime?
+  knockoutStart DateTime?
+
+  // Actual golden-boot winner, set by admin or sync (matched case-insensitively).
+  actualGoldenBoot String?
+
+  updatedAt DateTime @updatedAt
+}

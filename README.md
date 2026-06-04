@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Office World Cup 2026 Pool ⚽🏆
 
-## Getting Started
+A prediction game for the 2026 FIFA World Cup (48 teams, 104 matches, 11 Jun – 19 Jul 2026).
+Everyone joins with a name + 4-digit PIN, predicts scorelines, calls the knockout bracket and
+tournament bonuses, and climbs a live office leaderboard.
 
-First, run the development server:
+- **Match scoring (Classic):** 3 pts exact score, 1 pt correct result, 0 otherwise.
+- **Bracket bonus:** points for each team you correctly tip to reach R16 / QF / SF / Final / Champion.
+- **Tournament bonuses:** Champion, Runner-up, Golden Boot.
+- **Locking:** match picks lock at kickoff; bracket/bonus lock at the first kickoff. Enforced server-side.
+- **Live updates:** scores/results pull automatically from a football API; the leaderboard recomputes.
+
+Built with Next.js (App Router) + Prisma + Postgres + Tailwind.
+
+## Run it locally
+
+Requires Node 20+, Docker (for a local Postgres), and `npm install`.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Start a local Postgres (port 5433)
+docker run -d --name wc-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=worldcup \
+  -p 5433:5432 postgres:16
+
+# 2. Apply the schema and seed the tournament (teams, groups, all 104 fixtures)
+npx prisma migrate dev
+npm run db:seed
+
+# 3. Start the app
+npm run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Environment is read from `.env` (see `.env.example`). The defaults work out of the box for local
+dev; the secret worth setting is `ADMIN_PASSWORD` (defaults to `changeme-admin`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Try it
+- Open http://localhost:3000, join with a name + PIN, and make some predictions.
+- Go to **/admin** (password = `ADMIN_PASSWORD`) to enter results manually and watch the leaderboard
+  recompute. This is also how you test scoring without a live API key.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Handy scripts
+| Command | What it does |
+| --- | --- |
+| `npm run db:seed` | Seed/refresh teams + fixtures from the bundled dataset (`data/worldcup2026.json`). |
+| `npm run dev:results` | **Dev only:** finish all group matches with sample scores. |
+| `npm run dev:results all` | **Dev only:** play out a full bracket (tests bracket/bonus scoring). |
+| `npm run db:reset` | **Dev only:** clear all results back to scheduled. |
+| `npm run db:sync` | Pull live results from the football API (needs `FOOTBALL_API_KEY`). |
+| `npm test` | Unit tests for parsing, team-name matching, and scoring. |
 
-## Learn More
+## How live updates work
 
-To learn more about Next.js, take a look at the following resources:
+- The canonical fixture list is a bundled snapshot (no API key needed) — `npm run db:seed`.
+- Live scores/results come from **football-data.org** (free tier covers WC 2026) when
+  `FOOTBALL_DATA_TOKEN` is set. One request returns all fixtures; the sync maps them onto the seeded
+  matches (orientation-safe, penalty/winner-aware) and recomputes points. API-Football is a paid-tier
+  fallback, off unless `USE_API_FOOTBALL=1` (its free tier can't serve 2026).
+- `GET /api/live` (polled by the Matches/Leaderboard pages) triggers an **adaptive, throttled** sync:
+  ~every 25s while a match is live/imminent, 10 min within 6h of a game, 6h when idle — app-wide, so
+  many viewers share one upstream call and stay inside the rate limit.
+- `GET/POST /api/refresh?secret=REFRESH_SECRET` forces a sync; point a free scheduler at it (GitHub
+  Actions / cron-job.org) for updates while nobody has the page open.
+- Without a token, results are entered via **/admin** (manual override).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notable features
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Predict all 104 scorelines; **knockout bracket** (opens after the group stage, narrowed to the 32
+  qualified teams) and **tournament bonuses** (champion / runner-up / golden boot).
+- **Live leaderboard** with rank-movement arrows; tie-break by exact scores then correct results.
+- **Group standings** computed live on the Matches page.
+- **Per-match detail pages** that reveal everyone's picks (and points) once a match kicks off.
+- Server-enforced locking; PIN-gated picks (private until lock) with brute-force rate limiting.
 
-## Deploy on Vercel
+> **Identity:** there are no real accounts. Name + PIN is light tamper-protection only — fine for an
+> office, not real security.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploying (later)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Runs anywhere with Node + a Postgres connection string. Intended target: Vercel (free tier) + hosted
+Postgres (Neon / Supabase / Vercel Postgres). Set `DATABASE_URL`, `ADMIN_PASSWORD`, `FOOTBALL_API_KEY`,
+`REFRESH_SECRET` as env vars and deploy — `npm run build` runs `prisma migrate deploy` automatically.
+Seed production once via **/admin → Tools → Re-seed fixtures** (or `POST /api/admin/seed`).
