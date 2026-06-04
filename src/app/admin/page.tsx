@@ -229,7 +229,7 @@ function PicksTab({ password }: { password: string }) {
           <option value="">Reset passcode for…</option>
           {data.players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
-        <input className="input" style={{ width: 180 }} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 20))} placeholder="new passcode" />
+        <input className="input" style={{ width: 180 }} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\s/g, "").slice(0, 20))} placeholder="new passcode" />
         <Button variant="ghost" className="btn--sm" onClick={resetPasscode} disabled={!resetId || newPin.length < 4}>Reset</Button>
         {resetMsg && <span className="muted" style={{ fontSize: 12 }}>{resetMsg}</span>}
       </div></Card>

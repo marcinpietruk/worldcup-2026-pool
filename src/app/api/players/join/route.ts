@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Enter a name").max(40),
-  pin: z.string().regex(/^[A-Za-z0-9]{4,20}$/, "Passcode must be 4–20 letters or numbers"),
+  pin: z.string().regex(/^[!-~]{4,20}$/, "Passcode must be 4–20 characters (no spaces)"),
 });
 
 // Join (create) or sign in (existing name + matching PIN). No real auth — the PIN

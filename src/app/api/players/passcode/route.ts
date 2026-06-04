@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   playerId: z.string().min(1),
   pin: z.string().min(1), // current passcode
-  newPin: z.string().regex(/^[A-Za-z0-9]{4,20}$/, "Passcode must be 4–20 letters or numbers"),
+  newPin: z.string().regex(/^[!-~]{4,20}$/, "Passcode must be 4–20 characters (no spaces)"),
 });
 
 // Self-service passcode change — requires the current passcode.

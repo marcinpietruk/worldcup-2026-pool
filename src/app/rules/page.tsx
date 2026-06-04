@@ -42,7 +42,7 @@ export default function RulesPage() {
             Most points wins. Ties broken by most exact scores, then most correct results.
           </Rule>
           <Rule Icon={KeyRound} title="Your name & passcode">
-            No accounts — join with a name and a 4-digit passcode. It stops others editing your picks, but
+            No accounts — join with a name and a passcode (4–20 characters). It stops others editing your picks, but
             it&apos;s light protection, not real security.
           </Rule>
         </div>

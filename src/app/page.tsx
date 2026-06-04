@@ -68,7 +68,7 @@ function Join({ onJoined }: { onJoined: (name: string) => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!/^[A-Za-z0-9]{4,20}$/.test(pin)) return setError("Passcode must be 4–20 letters or numbers.");
+    if (!/^[!-~]{4,20}$/.test(pin)) return setError("Passcode must be 4–20 characters, no spaces.");
     setBusy(true);
     const res = await postJSON<{ id: string; name: string }>("/api/players/join", { name, pin });
     setBusy(false);
@@ -97,11 +97,11 @@ function Join({ onJoined }: { onJoined: (name: string) => void }) {
               <input
                 className="input"
                 value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 20))}
-                placeholder="a word or numbers you'll remember"
+                onChange={(e) => setPin(e.target.value.replace(/\s/g, "").slice(0, 20))}
+                placeholder="a word, numbers or symbols you'll remember"
                 autoComplete="off"
               />
-              <div className="hint">4–20 letters or numbers · remembered on this device</div>
+              <div className="hint">4–20 characters — letters, numbers or symbols · remembered on this device</div>
             </div>
             {error && <Message kind="error">{error}</Message>}
             <Button type="submit" className="btn--lg" disabled={busy || !name || pin.length < 4}>
@@ -202,7 +202,7 @@ function ChangePasscode() {
 
   async function save() {
     if (!player) return;
-    if (!/^[A-Za-z0-9]{4,20}$/.test(next)) return setMsg({ kind: "error", text: "New passcode must be 4–20 letters or numbers." });
+    if (!/^[!-~]{4,20}$/.test(next)) return setMsg({ kind: "error", text: "New passcode must be 4–20 characters, no spaces." });
     setBusy(true);
     const res = await postJSON("/api/players/passcode", { playerId: player.id, pin: cur, newPin: next });
     setBusy(false);
@@ -223,7 +223,7 @@ function ChangePasscode() {
           </div>
           <div className="field">
             <label>New passcode</label>
-            <input className="input" value={next} onChange={(e) => setNext(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 20))} autoComplete="off" />
+            <input className="input" value={next} onChange={(e) => setNext(e.target.value.replace(/\s/g, "").slice(0, 20))} autoComplete="off" />
           </div>
           {msg && <Message kind={msg.kind}>{msg.text}</Message>}
           <Button onClick={save} disabled={busy || !cur || next.length < 4}>{busy ? "Saving…" : "Change passcode"}</Button>

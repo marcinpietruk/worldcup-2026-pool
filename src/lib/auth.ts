@@ -8,7 +8,7 @@ export type PinResult =
   | { ok: true; player: Player }
   | { ok: false; status: 401 | 429; error: string };
 
-// Verify a player's 4-digit PIN, with brute-force rate limiting per player.
+// Verify a player's passcode, with brute-force rate limiting per player.
 // Light tamper-protection (stops casual pick-editing), NOT real auth.
 export async function verifyPin(playerId: string, pin: string): Promise<PinResult> {
   const key = `pin:${playerId}`;

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   password: z.string(),
   playerId: z.string().min(1),
-  newPin: z.string().regex(/^[A-Za-z0-9]{4,20}$/, "Passcode must be 4–20 letters or numbers"),
+  newPin: z.string().regex(/^[!-~]{4,20}$/, "Passcode must be 4–20 characters (no spaces)"),
 });
 
 // Admin resets a player's passcode (e.g. when they forget it).
