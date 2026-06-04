@@ -43,52 +43,33 @@ export default function MatchesPage() {
       <div className="pagehead">
         <div>
           <h1>Matches</h1>
-          <div className="sub">Auto-updating</div>
+          <div className="sub">{live.matches.length} games · auto-updating</div>
         </div>
         {liveCount > 0 && (
           <span className="live-flag"><span className="live-dot" /> {liveCount} live</span>
         )}
       </div>
 
-      <div className="filterpills">
-        {(["all", "LIVE", "SCHEDULED", "FINISHED"] as Filter[]).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`fp${filter === f ? " active" : ""}`}>
-            {f === "all" ? "All" : f === "SCHEDULED" ? "Upcoming" : f.charAt(0) + f.slice(1).toLowerCase()}
+      <div className="row wrap" style={{ justifyContent: "space-between" }}>
+        <div className="filterpills">
+          {(["all", "LIVE", "SCHEDULED", "FINISHED"] as Filter[]).map((f) => (
+            <button key={f} onClick={() => setFilter(f)} className={`fp${filter === f ? " active" : ""}`}>
+              {f === "all" ? "All" : f === "SCHEDULED" ? "Upcoming" : f.charAt(0) + f.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+        {hasStandings && (
+          <button
+            className="fp"
+            onClick={() => setShowStandings((s) => !s)}
+            style={showStandings ? { background: "var(--sun)", color: "#241a10" } : undefined}
+          >
+            {showStandings ? "Hide standings" : "Show standings"}
           </button>
-        ))}
+        )}
       </div>
 
-      {hasStandings && (
-        <div>
-          <button className="fp" onClick={() => setShowStandings((s) => !s)}>
-            {showStandings ? "Hide" : "Show"} group standings
-          </button>
-          {showStandings && (
-            <div className="stand-grid mt">
-              {standings.map((g) => (
-                <Card key={g.group} className="stand">
-                  <div className="card__head">Group {g.group}</div>
-                  <table>
-                    <thead>
-                      <tr><th className="l">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>
-                    </thead>
-                    <tbody>
-                      {g.rows.map((r, i) => (
-                        <tr key={r.teamId} className={i < 2 ? "qual" : ""}>
-                          <td className="l"><Flag iso2={r.iso2} name={r.name} size="sm" /> {r.name}</td>
-                          <td>{r.p}</td>
-                          <td>{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
-                          <td><span className="pts num">{r.pts}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {hasStandings && showStandings && <StandingsGrid groups={standings} />}
 
       <div className="stack-sm">
         {filtered.map((m) => (
@@ -162,6 +143,47 @@ function MatchCard({ match, me, settings }: { match: MatchDTO; me: StateResponse
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function StandingsGrid({ groups }: { groups: ReturnType<typeof computeStandings> }) {
+  return (
+    <div className="stand-grid">
+      {groups.map((g) => (
+        <Card key={g.group} className="stand overflow-hidden">
+          <div className="card__head">
+            Group {g.group}
+            <span className="qpill">top 2 advance</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th className="l">Team</th>
+                <th>P</th>
+                <th>W</th>
+                <th>D</th>
+                <th>L</th>
+                <th>GD</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {g.rows.map((r, i) => (
+                <tr key={r.teamId} className={i < 2 ? "qual" : ""}>
+                  <td className="l"><Flag iso2={r.iso2} name={r.name} size="sm" /> {r.name}</td>
+                  <td>{r.p}</td>
+                  <td>{r.w}</td>
+                  <td>{r.d}</td>
+                  <td>{r.l}</td>
+                  <td>{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
+                  <td><span className="pts num">{r.pts}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      ))}
     </div>
   );
 }

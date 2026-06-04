@@ -31,9 +31,11 @@ export function computeStandings(matches: MatchDTO[]): { group: string; rows: St
 
   for (const m of matches) {
     if (m.stage !== "GROUP" || !m.group || !m.home || !m.away) continue;
-    if (m.status !== "FINISHED" || m.homeScore == null || m.awayScore == null) continue;
+    // Register both teams (so the full group table shows even before kickoff)…
     const h = row(m.group, m.home);
     const a = row(m.group, m.away);
+    // …then accumulate only from finished games.
+    if (m.status !== "FINISHED" || m.homeScore == null || m.awayScore == null) continue;
     h.p++; a.p++;
     h.gf += m.homeScore; h.ga += m.awayScore;
     a.gf += m.awayScore; a.ga += m.homeScore;
