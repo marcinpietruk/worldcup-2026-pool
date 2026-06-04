@@ -4,10 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getPlayer, fetchState, type StateResponse, type MatchDTO, type SettingsDTO } from "@/lib/client";
 import { useLive } from "@/lib/useLive";
-import { Card, Spinner, Message } from "@/components/ui";
+import { Spinner, Message } from "@/components/ui";
 import { Flag } from "@/components/Flag";
 import { STAGE_LABEL, formatKickoff, sideOf } from "@/lib/format";
-import { computeStandings } from "@/lib/standings";
 
 type Filter = "all" | "LIVE" | "SCHEDULED" | "FINISHED";
 
@@ -15,12 +14,8 @@ export default function MatchesPage() {
   const [settings, setSettings] = useState<SettingsDTO | null>(null);
   const [myPreds, setMyPreds] = useState<StateResponse["me"]>(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const [showStandings, setShowStandings] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const { live } = useLive();
-
-  const standings = useMemo(() => computeStandings(live?.matches ?? []), [live]);
-  const hasStandings = standings.some((g) => g.rows.some((r) => r.p > 0));
 
   useEffect(() => {
     fetchState(getPlayer())
@@ -50,26 +45,13 @@ export default function MatchesPage() {
         )}
       </div>
 
-      <div className="row wrap" style={{ justifyContent: "space-between" }}>
-        <div className="filterpills">
-          {(["all", "LIVE", "SCHEDULED", "FINISHED"] as Filter[]).map((f) => (
-            <button key={f} onClick={() => setFilter(f)} className={`fp${filter === f ? " active" : ""}`}>
-              {f === "all" ? "All" : f === "SCHEDULED" ? "Upcoming" : f.charAt(0) + f.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-        {hasStandings && (
-          <button
-            className="fp"
-            onClick={() => setShowStandings((s) => !s)}
-            style={showStandings ? { background: "var(--sun)", color: "#241a10" } : undefined}
-          >
-            {showStandings ? "Hide standings" : "Show standings"}
+      <div className="filterpills">
+        {(["all", "LIVE", "SCHEDULED", "FINISHED"] as Filter[]).map((f) => (
+          <button key={f} onClick={() => setFilter(f)} className={`fp${filter === f ? " active" : ""}`}>
+            {f === "all" ? "All" : f === "SCHEDULED" ? "Upcoming" : f.charAt(0) + f.slice(1).toLowerCase()}
           </button>
-        )}
+        ))}
       </div>
-
-      {hasStandings && showStandings && <StandingsGrid groups={standings} />}
 
       <div className="stack-sm">
         {filtered.map((m) => (
@@ -147,43 +129,3 @@ function MatchCard({ match, me, settings }: { match: MatchDTO; me: StateResponse
   );
 }
 
-function StandingsGrid({ groups }: { groups: ReturnType<typeof computeStandings> }) {
-  return (
-    <div className="stand-grid">
-      {groups.map((g) => (
-        <Card key={g.group} className="stand overflow-hidden">
-          <div className="card__head">
-            Group {g.group}
-            <span className="qpill">top 2 advance</span>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th className="l">Team</th>
-                <th>P</th>
-                <th>W</th>
-                <th>D</th>
-                <th>L</th>
-                <th>GD</th>
-                <th>Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {g.rows.map((r, i) => (
-                <tr key={r.teamId} className={i < 2 ? "qual" : ""}>
-                  <td className="l"><Flag iso2={r.iso2} name={r.name} size="sm" /> {r.name}</td>
-                  <td>{r.p}</td>
-                  <td>{r.w}</td>
-                  <td>{r.d}</td>
-                  <td>{r.l}</td>
-                  <td>{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
-                  <td><span className="pts num">{r.pts}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      ))}
-    </div>
-  );
-}

@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/predict", label: "Predict" },
   { href: "/matches", label: "Matches" },
+  { href: "/standings", label: "Groups" },
   { href: "/leaderboard", label: "Table" },
   { href: "/h2h", label: "H2H" },
   { href: "/rules", label: "Rules" },
