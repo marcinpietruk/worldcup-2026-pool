@@ -145,7 +145,7 @@ test("parseFdMatch: football-data.org group + knockout", () => {
 });
 
 test("computeStandings ranks a group by points then GD", () => {
-  const team = (id: string) => ({ id, name: id, flag: null, code: null });
+  const team = (id: string) => ({ id, name: id, flag: null, code: null, iso2: null });
   const gm = (h: string, a: string, hs: number, as: number) =>
     ({
       id: `${h}${a}`, number: 0, stage: "GROUP", group: "A", matchday: 1, kickoff: "2026-06-11T19:00:00Z",
@@ -162,7 +162,7 @@ test("computeStandings ranks a group by points then GD", () => {
 });
 
 test("bracket: derive picks, reconstruct, and normalize", () => {
-  const team = (id: string) => ({ id, name: id, flag: null, code: null });
+  const team = (id: string) => ({ id, name: id, flag: null, code: null, iso2: null });
   const mk = (num: number, stage: string, home: string | null, away: string | null, sh: number | null, sa: number | null): MatchDTO =>
     ({
       id: `m${num}`, number: num, stage, group: null, matchday: null, kickoff: "2026-07-01T00:00:00Z",

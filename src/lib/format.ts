@@ -31,11 +31,11 @@ export function formatDay(iso: string): string {
   });
 }
 
-export type Side = { name: string; flag: string; faded: boolean };
+export type Side = { name: string; iso2: string | null; faded: boolean };
 
 export function sideOf(match: MatchDTO, which: "home" | "away"): Side {
   const team = which === "home" ? match.home : match.away;
   const label = which === "home" ? match.homeLabel : match.awayLabel;
-  if (team) return { name: team.name, flag: team.flag ?? "", faded: false };
-  return { name: label ?? "TBD", flag: "", faded: true };
+  if (team) return { name: team.name, iso2: team.iso2, faded: false };
+  return { name: label ?? "TBD", iso2: null, faded: true };
 }

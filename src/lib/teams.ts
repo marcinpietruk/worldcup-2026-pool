@@ -178,3 +178,12 @@ export function flagFor(name: string): string {
 export function fifaCodeFor(name: string): string {
   return FIFA_CODE[name] ?? name.slice(0, 3).toUpperCase();
 }
+
+// ISO 3166-1 alpha-2 (lowercased) for flag images (flagcdn). England/Scotland
+// use GB subdivision codes. null when unknown (e.g. unresolved knockout slot).
+export function iso2For(name: string): string | null {
+  if (name === "England") return "gb-eng";
+  if (name === "Scotland") return "gb-sct";
+  const code = ALPHA2[name];
+  return code ? code.toLowerCase() : null;
+}

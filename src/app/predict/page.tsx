@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Star, Lock } from "lucide-react";
 import {
   getPlayer,
   fetchState,
@@ -11,8 +12,9 @@ import {
   type TeamDTO,
 } from "@/lib/client";
 import { Card, Button, Message, Spinner, SectionTitle } from "@/components/ui";
+import { Flag } from "@/components/Flag";
 import { BracketBoard } from "@/components/BracketBoard";
-import { STAGE_LABEL, STAGE_ORDER, formatKickoff, sideOf } from "@/lib/format";
+import { formatKickoff, sideOf } from "@/lib/format";
 
 type Tab = "matches" | "bracket" | "bonus";
 
@@ -25,8 +27,7 @@ export default function PredictPage() {
   async function reload() {
     const p = getPlayer();
     if (!p) return;
-    const s = await fetchState(p);
-    setState(s);
+    setState(await fetchState(p));
   }
 
   useEffect(() => {
@@ -38,28 +39,21 @@ export default function PredictPage() {
   if (hasPlayer === false)
     return (
       <Message kind="info">
-        You need to join first. <Link href="/" className="underline font-medium">Go to the join page →</Link>
+        You need to join first. <Link href="/" className="linkish">Go to the join page →</Link>
       </Message>
     );
   if (err) return <Message kind="error">{err}</Message>;
   if (!state) return <Spinner />;
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+    <div className="stack">
+      <div className="tabs">
         {(["matches", "bracket", "bonus"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 rounded-lg px-3 py-2 capitalize transition ${
-              tab === t ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500"
-            }`}
-          >
-            {t === "matches" ? "Match scores" : t}
+          <button key={t} onClick={() => setTab(t)} className={`tab${tab === t ? " active" : ""}`}>
+            {t === "matches" ? "Match scores" : t === "bracket" ? "Bracket" : "Bonus"}
           </button>
         ))}
       </div>
-
       {tab === "matches" && <MatchesTab state={state} onSaved={reload} />}
       {tab === "bracket" && <BracketTab state={state} onSaved={reload} />}
       {tab === "bonus" && <BonusTab state={state} onSaved={reload} />}
@@ -67,7 +61,7 @@ export default function PredictPage() {
   );
 }
 
-// ---- Match score predictions --------------------------------------------
+// ---- Match scores --------------------------------------------------------
 
 function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => Promise<void> }) {
   const [edits, setEdits] = useState<Record<string, { home: string; away: string }>>({});
@@ -75,7 +69,6 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
-  // Seed local edit state from saved predictions.
   useEffect(() => {
     const init: Record<string, { home: string; away: string }> = {};
     for (const [id, p] of Object.entries(state.me?.predictions ?? {})) {
@@ -96,14 +89,10 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
     const player = getPlayer();
     if (!player) return;
     const next = joker === matchId ? null : matchId;
-    const res = await postJSON<{ jokerMatchId: string | null }>("/api/joker", {
-      playerId: player.id,
-      pin: player.pin,
-      matchId: next,
-    });
+    const res = await postJSON<{ jokerMatchId: string | null }>("/api/joker", { playerId: player.id, pin: player.pin, matchId: next });
     if (!res.ok) return setMsg({ kind: "error", text: res.error });
     setJokerState(next);
-    setMsg({ kind: "success", text: next ? "⭐ Joker set on this match!" : "Joker cleared." });
+    setMsg({ kind: "success", text: next ? "⭐ Joker set!" : "Joker cleared." });
   }
 
   async function save() {
@@ -114,78 +103,58 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
       .map(([matchId, v]) => ({ matchId, homeScore: Number(v.home), awayScore: Number(v.away) }));
     if (predictions.length === 0) return setMsg({ kind: "error", text: "Nothing to save yet." });
     setBusy(true);
-    const res = await postJSON<{ saved: number; rejected: string[] }>("/api/predictions", {
-      playerId: player.id,
-      pin: player.pin,
-      predictions,
-    });
+    const res = await postJSON<{ saved: number; rejected: string[] }>("/api/predictions", { playerId: player.id, pin: player.pin, predictions });
     setBusy(false);
     if (!res.ok) return setMsg({ kind: "error", text: res.error });
-    setMsg({
-      kind: "success",
-      text: `Saved ${res.data.saved} prediction${res.data.saved === 1 ? "" : "s"}.${
-        res.data.rejected.length ? ` ${res.data.rejected.length} skipped (locked).` : ""
-      }`,
-    });
+    setMsg({ kind: "success", text: `Saved ${res.data.saved}.${res.data.rejected.length ? ` ${res.data.rejected.length} locked.` : ""}` });
     await onSaved();
   }
 
   return (
-    <div className="space-y-5 pb-24">
-      <SectionTitle sub={`${state.settings.pointsExact} pts exact score · ${state.settings.pointsResult} pt right result · predictions lock at kickoff`}>
-        Predict every scoreline
+    <div style={{ paddingBottom: 8 }}>
+      <SectionTitle sub={`Group stage · ${state.settings.pointsExact} pts exact · ${state.settings.pointsResult} pt result · locks at kickoff. Knockouts are in the Bracket tab.`}>
+        Predict the group stage
       </SectionTitle>
-
       <Message kind="info">
-        ⭐ <b>Joker:</b> tap a star to double that match&apos;s points (×{state.settings.jokerMultiplier}) — but a
-        wrong joker costs you {state.settings.jokerPenalty}. One at a time; move it until that match kicks off.
+        ⭐ <b>Joker:</b> star one match to multiply its points ×{state.settings.jokerMultiplier} — a wrong joker costs {state.settings.jokerPenalty}.
       </Message>
 
-      {sections.map((sec) => (
-        <Card key={sec.key} className="overflow-hidden">
-          <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-600">
-            {sec.title}
-          </div>
-          <div className="divide-y divide-slate-100">
-            {sec.matches.map((m) => (
-              <ScoreRow
-                key={m.id}
-                match={m}
-                value={edits[m.id]}
-                onChange={(side, v) => setScore(m.id, side, v)}
-                isJoker={joker === m.id}
-                onToggleJoker={() => toggleJoker(m.id)}
-              />
-            ))}
-          </div>
-        </Card>
-      ))}
+      <div className="stack mt">
+        {sections.map((sec) => (
+          <Card key={sec.key} className="overflow-hidden">
+            <div className="grouphead">
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {sec.group && <span className="gp">{sec.group}</span>}
+                {sec.title}
+              </span>
+            </div>
+            <div>
+              {sec.matches.map((m) => (
+                <ScoreRow
+                  key={m.id}
+                  match={m}
+                  value={edits[m.id]}
+                  onChange={(side, v) => setScore(m.id, side, v)}
+                  isJoker={joker === m.id}
+                  onToggleJoker={() => toggleJoker(m.id)}
+                />
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          {msg ? (
-            <span className={`text-sm ${msg.kind === "success" ? "text-emerald-600" : "text-rose-600"}`}>
-              {msg.text}
-            </span>
-          ) : (
-            <span className="text-sm text-slate-400">Fill in scores, then save.</span>
-          )}
-          <Button onClick={save} disabled={busy}>
-            {busy ? "Saving…" : "Save predictions"}
-          </Button>
-        </div>
+      <div className="savebar">
+        <span className="msgtext" style={{ color: msg?.kind === "error" ? "var(--bad-ink)" : msg?.kind === "success" ? "var(--good-ink)" : "var(--ink-soft)" }}>
+          {msg ? msg.text : "Fill in scores, then save."}
+        </span>
+        <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save predictions"}</Button>
       </div>
     </div>
   );
 }
 
-function ScoreRow({
-  match,
-  value,
-  onChange,
-  isJoker,
-  onToggleJoker,
-}: {
+function ScoreRow({ match, value, onChange, isJoker, onToggleJoker }: {
   match: MatchDTO;
   value?: { home: string; away: string };
   onChange: (side: "home" | "away", v: string) => void;
@@ -194,88 +163,47 @@ function ScoreRow({
 }) {
   const home = sideOf(match, "home");
   const away = sideOf(match, "away");
-  const finished = match.status === "FINISHED";
   return (
-    <div className={`flex items-center gap-2 px-4 py-2.5 ${isJoker ? "bg-amber-50" : ""}`}>
-      <div className="hidden w-24 shrink-0 text-xs text-slate-400 sm:block">{formatKickoff(match.kickoff)}</div>
-      <TeamName flag={home.flag} name={home.name} faded={home.faded} align="right" />
-      <div className="flex items-center gap-1">
-        <ScoreInput value={value?.home ?? ""} onChange={(v) => onChange("home", v)} disabled={match.locked} />
-        <span className="text-slate-300">:</span>
-        <ScoreInput value={value?.away ?? ""} onChange={(v) => onChange("away", v)} disabled={match.locked} />
+    <div className={`prow${isJoker ? " is-joker" : ""}`}>
+      <div className="pwhen">{formatKickoff(match.kickoff)}</div>
+      <div className="pteam r">
+        <span className={`nm${home.faded ? " faded" : ""}`}>{home.name}</span>
+        <Flag iso2={home.iso2} name={home.name} size="sm" />
       </div>
-      <TeamName flag={away.flag} name={away.name} faded={away.faded} align="left" />
-      <div className="ml-auto flex shrink-0 items-center gap-1.5 text-right text-xs">
-        {finished && (
-          <span className="font-semibold text-slate-500">{match.homeScore}-{match.awayScore}</span>
-        )}
-        {match.locked ? (
-          isJoker ? (
-            <span title="Your joker (locked in)" className="text-base">⭐</span>
-          ) : (
-            <span className="text-slate-300">🔒</span>
-          )
-        ) : (
-          <button
-            type="button"
-            onClick={onToggleJoker}
-            title={isJoker ? "Remove joker" : "Joker this match"}
-            className={`text-base leading-none transition ${isJoker ? "" : "opacity-25 hover:opacity-60"}`}
-          >
-            {isJoker ? "⭐" : "☆"}
-          </button>
-        )}
+      <div className="sbox">
+        <input className="sinp" value={value?.home ?? ""} onChange={(e) => onChange("home", e.target.value)} disabled={match.locked} inputMode="numeric" />
+        <span className="colon">:</span>
+        <input className="sinp" value={value?.away ?? ""} onChange={(e) => onChange("away", e.target.value)} disabled={match.locked} inputMode="numeric" />
       </div>
+      <div className="pteam">
+        <Flag iso2={away.iso2} name={away.name} size="sm" />
+        <span className={`nm${away.faded ? " faded" : ""}`}>{away.name}</span>
+      </div>
+      {match.locked ? (
+        isJoker ? <Star className="ic-svg lock" style={{ color: "var(--gold)" }} fill="currentColor" /> : <Lock className="ic-svg lock" style={{ color: "var(--ink-faint)" }} />
+      ) : (
+        <button className={`jbtn${isJoker ? "" : " off"}`} onClick={onToggleJoker} title={isJoker ? "Remove joker" : "Joker this match"} style={{ color: "var(--gold)" }}>
+          <Star className="ic-svg" fill={isJoker ? "currentColor" : "none"} />
+        </button>
+      )}
     </div>
   );
 }
 
-function TeamName({ flag, name, faded, align }: { flag: string; name: string; faded: boolean; align: "left" | "right" }) {
-  return (
-    <div className={`flex flex-1 items-center gap-1.5 ${align === "right" ? "justify-end text-right" : "justify-start"}`}>
-      {align === "right" && <span className={`truncate text-sm ${faded ? "italic text-slate-400" : "text-slate-700"}`}>{name}</span>}
-      <span className="text-lg">{flag || "🏳️"}</span>
-      {align === "left" && <span className={`truncate text-sm ${faded ? "italic text-slate-400" : "text-slate-700"}`}>{name}</span>}
-    </div>
-  );
-}
-
-function ScoreInput({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
-  return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      inputMode="numeric"
-      placeholder="–"
-      className="score h-9 w-9 rounded-md border border-slate-300 text-center text-sm font-semibold outline-none focus:border-emerald-500 disabled:bg-slate-100 disabled:text-slate-400"
-    />
-  );
-}
-
-type Section = { key: string; title: string; matches: MatchDTO[] };
+type Section = { key: string; title: string; group: string | null; matches: MatchDTO[] };
+// Only group-stage matches get a scoreline here — the knockout phase is predicted
+// in the Bracket tab.
 function groupMatches(matches: MatchDTO[]): Section[] {
-  const sections: Section[] = [];
-  // Group stage split by group letter.
-  const groups = [...new Set(matches.filter((m) => m.stage === "GROUP").map((m) => m.group))]
-    .filter(Boolean)
-    .sort() as string[];
-  for (const g of groups) {
-    sections.push({
-      key: `G${g}`,
-      title: `Group ${g}`,
-      matches: matches.filter((m) => m.stage === "GROUP" && m.group === g),
-    });
-  }
-  // Knockout stages.
-  for (const stage of STAGE_ORDER.filter((s) => s !== "GROUP")) {
-    const ms = matches.filter((m) => m.stage === stage);
-    if (ms.length) sections.push({ key: stage, title: STAGE_LABEL[stage], matches: ms });
-  }
-  return sections;
+  const groups = [...new Set(matches.filter((m) => m.stage === "GROUP").map((m) => m.group))].filter(Boolean).sort() as string[];
+  return groups.map((g) => ({
+    key: `G${g}`,
+    title: `Group ${g}`,
+    group: g,
+    matches: matches.filter((m) => m.stage === "GROUP" && m.group === g),
+  }));
 }
 
-// ---- Knockout bracket (graphical board) ---------------------------------
+// ---- Bracket -------------------------------------------------------------
 
 function BracketTab({ state, onSaved }: { state: StateResponse; onSaved: () => Promise<void> }) {
   const status = state.settings.bracketStatus;
@@ -290,31 +218,27 @@ function BracketTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
   }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle sub="Tap a team to send it through the knockouts — your pick flows into the next round. Bonus points for each team you correctly advance.">
+    <div className="stack">
+      <SectionTitle sub="Tap a team to send it through the knockouts — your pick flows into the next round.">
         Knockout bracket
       </SectionTitle>
       {status === "PENDING_GROUPS" && (
         <Message kind="info">
           🔒 The bracket opens once the group stage is over
           {state.settings.groupStageEnd ? ` (around ${new Date(state.settings.groupStageEnd).toLocaleDateString()})` : ""} —
-          the 32 qualified teams drop into the slots below, then you tap to advance them.
+          the 32 qualified teams drop in, then you tap to advance them.
         </Message>
       )}
-      {status === "CLOSED" && <Message kind="info">🔒 Bracket picks are locked — the knockout stage has started.</Message>}
-
-      <Card className="p-3">
-        <BracketBoard matches={state.matches} saved={state.me?.bracket ?? {}} editable={editable} onSave={handleSave} />
-      </Card>
-
-      <p className="text-xs text-slate-400">
+      {status === "CLOSED" && <Message kind="info">🔒 Bracket picks are locked — the knockouts have started.</Message>}
+      <Card><div className="card__body"><BracketBoard matches={state.matches} saved={state.me?.bracket ?? {}} editable={editable} onSave={handleSave} /></div></Card>
+      <p className="muted center" style={{ fontSize: 12 }}>
         Bonus per correct team — R16 +{state.settings.bonusR16}, QF +{state.settings.bonusQF}, SF +{state.settings.bonusSF}, Final +{state.settings.bonusFinal}, Champion +{state.settings.bonusChampion}.
       </p>
     </div>
   );
 }
 
-// ---- Tournament bonus picks ---------------------------------------------
+// ---- Bonus ---------------------------------------------------------------
 
 function BonusTab({ state, onSaved }: { state: StateResponse; onSaved: () => Promise<void> }) {
   const [champion, setChampion] = useState("");
@@ -334,13 +258,7 @@ function BonusTab({ state, onSaved }: { state: StateResponse; onSaved: () => Pro
     const player = getPlayer();
     if (!player) return;
     setBusy(true);
-    const res = await postJSON("/api/bonus", {
-      playerId: player.id,
-      pin: player.pin,
-      championTeamId: champion || null,
-      runnerUpTeamId: runnerUp || null,
-      goldenBoot: golden || null,
-    });
+    const res = await postJSON("/api/bonus", { playerId: player.id, pin: player.pin, championTeamId: champion || null, runnerUpTeamId: runnerUp || null, goldenBoot: golden || null });
     setBusy(false);
     if (!res.ok) return setMsg({ kind: "error", text: res.error });
     setMsg({ kind: "success", text: "Bonus picks saved." });
@@ -348,30 +266,22 @@ function BonusTab({ state, onSaved }: { state: StateResponse; onSaved: () => Pro
   }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle sub="One-off calls for the whole tournament. Locks at the first kickoff.">
-        Tournament bonuses
-      </SectionTitle>
+    <div className="stack">
+      <SectionTitle sub="One-off calls for the whole tournament. Lock at the first kickoff.">Tournament bonuses</SectionTitle>
       {locked && <Message kind="info">🔒 Bonus picks are locked — the tournament has started.</Message>}
-
-      <Card className="space-y-4 p-5">
-        <BonusSelect label={`Champion · +${state.settings.bonusTournamentChampion} pts`} value={champion} onChange={setChampion} teams={state.teams} disabled={locked} />
-        <BonusSelect label={`Runner-up · +${state.settings.bonusRunnerUp} pts`} value={runnerUp} onChange={setRunnerUp} teams={state.teams} disabled={locked} />
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Golden Boot (top scorer) · +{state.settings.bonusGoldenBoot} pts</label>
-          <input
-            value={golden}
-            onChange={(e) => setGolden(e.target.value)}
-            disabled={locked}
-            placeholder="Player name"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 disabled:bg-slate-100"
-          />
+      <Card>
+        <div className="card__body stack-sm">
+          <BonusSelect label={`Champion · +${state.settings.bonusTournamentChampion} pts`} value={champion} onChange={setChampion} teams={state.teams} disabled={locked} />
+          <BonusSelect label={`Runner-up · +${state.settings.bonusRunnerUp} pts`} value={runnerUp} onChange={setRunnerUp} teams={state.teams} disabled={locked} />
+          <div className="field">
+            <label>Golden Boot (top scorer) · +{state.settings.bonusGoldenBoot} pts</label>
+            <input className="input" value={golden} onChange={(e) => setGolden(e.target.value)} disabled={locked} placeholder="Player name" />
+          </div>
         </div>
       </Card>
-
-      <div className="flex items-center gap-3">
+      <div className="row">
         <Button onClick={save} disabled={busy || locked}>{busy ? "Saving…" : "Save bonuses"}</Button>
-        {msg && <span className={`text-sm ${msg.kind === "success" ? "text-emerald-600" : "text-rose-600"}`}>{msg.text}</span>}
+        {msg && <span className="muted" style={{ fontSize: 13, color: msg.kind === "success" ? "var(--good-ink)" : "var(--bad-ink)" }}>{msg.text}</span>}
       </div>
     </div>
   );
@@ -379,20 +289,14 @@ function BonusTab({ state, onSaved }: { state: StateResponse; onSaved: () => Pro
 
 function BonusSelect({ label, value, onChange, teams, disabled }: { label: string; value: string; onChange: (v: string) => void; teams: TeamDTO[]; disabled?: boolean }) {
   return (
-    <div>
-      <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 disabled:bg-slate-100"
-      >
+    <div className="field">
+      <label>{label}</label>
+      <select className="select" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
         <option value="">— pick a team —</option>
-        {teams.map((t) => (
-          <option key={t.id} value={t.id}>{t.flag} {t.name}</option>
+        {[...teams].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
+          <option key={t.id} value={t.id}>{t.name}</option>
         ))}
       </select>
     </div>
   );
 }
-

@@ -13,7 +13,7 @@ const LIMITS: Record<string, number> = { R16: 16, QF: 8, SF: 4, FINAL: 2, CHAMPI
 
 const schema = z.object({
   playerId: z.string().min(1),
-  pin: z.string().regex(/^\d{4}$/),
+  pin: z.string().min(1),
   picks: z.object({
     R16: z.array(z.string()).max(16),
     QF: z.array(z.string()).max(8),

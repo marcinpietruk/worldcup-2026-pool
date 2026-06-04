@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   playerId: z.string().min(1),
-  pin: z.string().regex(/^\d{4}$/),
+  pin: z.string().min(1),
   championTeamId: z.string().nullable().optional(),
   runnerUpTeamId: z.string().nullable().optional(),
   goldenBoot: z.string().trim().max(60).nullable().optional(),

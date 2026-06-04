@@ -3,7 +3,7 @@ import type { MatchDTO } from "./client";
 export type StandingRow = {
   teamId: string;
   name: string;
-  flag: string | null;
+  iso2: string | null;
   p: number;
   w: number;
   d: number;
@@ -20,11 +20,11 @@ export type StandingRow = {
 export function computeStandings(matches: MatchDTO[]): { group: string; rows: StandingRow[] }[] {
   const groups = new Map<string, Map<string, StandingRow>>();
 
-  const row = (g: string, t: { id: string; name: string; flag: string | null }) => {
+  const row = (g: string, t: { id: string; name: string; iso2: string | null }) => {
     if (!groups.has(g)) groups.set(g, new Map());
     const table = groups.get(g)!;
     if (!table.has(t.id)) {
-      table.set(t.id, { teamId: t.id, name: t.name, flag: t.flag, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
+      table.set(t.id, { teamId: t.id, name: t.name, iso2: t.iso2, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
     }
     return table.get(t.id)!;
   };

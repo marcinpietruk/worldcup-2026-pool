@@ -2,7 +2,7 @@
 
 // ---- Shared DTO types (mirror the API responses) -------------------------
 
-export type TeamDTO = { id: string; name: string; flag: string | null; code: string | null; group?: string | null };
+export type TeamDTO = { id: string; name: string; flag: string | null; code: string | null; iso2: string | null; group?: string | null };
 
 export type MatchDTO = {
   id: string;

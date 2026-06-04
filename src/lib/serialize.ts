@@ -1,8 +1,9 @@
 import { prisma } from "./prisma";
 import { isMatchLocked } from "./scoring";
+import { iso2For } from "./teams";
 import type { Match, Team } from "@prisma/client";
 
-export type TeamDTO = { id: string; name: string; flag: string | null; code: string | null; group?: string | null };
+export type TeamDTO = { id: string; name: string; flag: string | null; code: string | null; iso2: string | null; group?: string | null };
 
 export type MatchDTO = {
   id: string;
@@ -28,7 +29,7 @@ export type MatchDTO = {
 type MatchWithTeams = Match & { homeTeam: Team | null; awayTeam: Team | null };
 
 const teamDto = (t: Team | null): TeamDTO | null =>
-  t ? { id: t.id, name: t.name, flag: t.flag, code: t.code } : null;
+  t ? { id: t.id, name: t.name, flag: t.flag, code: t.code, iso2: iso2For(t.name) } : null;
 
 const sourceNum = (label: string | null): number | null => {
   const m = label?.match(/^W(\d+)$/i);
@@ -68,5 +69,5 @@ export async function getMatchDTOs(now = new Date()): Promise<MatchDTO[]> {
 
 export async function getTeamDTOs(): Promise<TeamDTO[]> {
   const teams = await prisma.team.findMany({ orderBy: [{ group: "asc" }, { name: "asc" }] });
-  return teams.map((t) => ({ id: t.id, name: t.name, flag: t.flag, code: t.code, group: t.group }));
+  return teams.map((t) => ({ id: t.id, name: t.name, flag: t.flag, code: t.code, iso2: iso2For(t.name), group: t.group }));
 }

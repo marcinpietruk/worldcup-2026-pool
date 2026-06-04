@@ -13,6 +13,8 @@ import {
   type LiveResponse,
 } from "@/lib/client";
 import { Card, Button, Message, Spinner } from "@/components/ui";
+import { Ball } from "@/components/icons";
+import { Countdown } from "@/components/Countdown";
 
 export default function HomePage() {
   const [playerName, setPlayerName] = useState<string | null>(null);
@@ -31,6 +33,32 @@ export default function HomePage() {
   );
 }
 
+function Hero({ nextKickoff }: { nextKickoff?: string }) {
+  return (
+    <div className="hero">
+      <div className="h-kick">
+        <Ball className="ic-svg" /> Jun 11 – Jul 19 · 48 teams · 104 games
+      </div>
+      <h1>
+        <span className="l1">World Cup</span>
+        <span className="l2">2026</span>
+      </h1>
+      <p className="h-sub">
+        Predict every scoreline, call the knockout bracket, and back your champion. Score points,
+        climb the office table, win the bragging rights.
+      </p>
+      {nextKickoff && (
+        <>
+          <div style={{ marginTop: 16, fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", opacity: 0.92 }}>
+            Next kickoff in
+          </div>
+          <Countdown to={nextKickoff} />
+        </>
+      )}
+    </div>
+  );
+}
+
 function Join({ onJoined }: { onJoined: (name: string) => void }) {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -40,7 +68,7 @@ function Join({ onJoined }: { onJoined: (name: string) => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!/^\d{4}$/.test(pin)) return setError("PIN must be exactly 4 digits.");
+    if (!/^[A-Za-z0-9]{4,20}$/.test(pin)) return setError("Passcode must be 4–20 letters or numbers.");
     setBusy(true);
     const res = await postJSON<{ id: string; name: string }>("/api/players/join", { name, pin });
     setBusy(false);
@@ -50,64 +78,39 @@ function Join({ onJoined }: { onJoined: (name: string) => void }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack">
       <Hero />
-      <Card className="p-6 max-w-md mx-auto">
-        <h2 className="text-lg font-bold text-slate-800">Join the pool</h2>
-        <p className="mb-4 text-sm text-slate-500">
-          Pick a name and a 4-digit PIN. Use the same two to come back later — the PIN keeps others
-          from editing your picks (it&apos;s light protection, not real security).
-        </p>
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Your name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={40}
-              placeholder="e.g. Marcin"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">4-digit PIN</label>
-            <input
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              inputMode="numeric"
-              placeholder="••••"
-              className="score w-28 rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.4em] outline-none focus:border-emerald-500"
-            />
-          </div>
-          {error && <Message kind="error">{error}</Message>}
-          <Button type="submit" disabled={busy || !name || pin.length !== 4}>
-            {busy ? "Joining…" : "Join / Sign in"}
-          </Button>
-        </form>
+      <Card>
+        <div className="card__body" style={{ maxWidth: 420, margin: "0 auto", width: "100%" }}>
+          <h2 className="disp" style={{ fontSize: 21 }}>Join the pool</h2>
+          <p className="muted" style={{ fontSize: 13, margin: "4px 0 16px" }}>
+            Pick a name and a passcode. Use the same two to come back later — the passcode keeps others
+            from editing your picks (light protection, not real security).
+          </p>
+          <form onSubmit={submit} className="stack-sm">
+            <div className="field">
+              <label>Your name</label>
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="e.g. Marcin" />
+            </div>
+            <div className="field">
+              <label>Passcode</label>
+              <input
+                className="input"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 20))}
+                placeholder="a word or numbers you'll remember"
+                autoComplete="off"
+              />
+              <div className="hint">4–20 letters or numbers · remembered on this device</div>
+            </div>
+            {error && <Message kind="error">{error}</Message>}
+            <Button type="submit" className="btn--lg" disabled={busy || !name || pin.length < 4}>
+              {busy ? "Joining…" : "Join / Sign in"}
+            </Button>
+          </form>
+        </div>
       </Card>
     </div>
-  );
-}
-
-function Hero() {
-  return (
-    <Card className="overflow-hidden border-0">
-      <div className="pitch-stripes px-6 py-10 text-white">
-        <div className="text-5xl">🏆⚽</div>
-        <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-          Office World Cup 2026 Pool
-        </h1>
-        <p className="mt-2 max-w-xl text-white/90">
-          Predict every match, call the knockout bracket, and back your champion. Score points, climb
-          the office table, win the bragging rights. 48 teams, 104 games, one winner among us.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2 text-sm">
-          <span className="rounded-full bg-white/15 px-3 py-1">3 pts exact score</span>
-          <span className="rounded-full bg-white/15 px-3 py-1">1 pt right result</span>
-          <span className="rounded-full bg-white/15 px-3 py-1">Bonus bracket + champion</span>
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -129,53 +132,103 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
   if (!state) return <Spinner />;
 
   const open = state.matches.filter((m) => !m.locked);
-  const predictedOpen = open.filter((m) => state.me?.predictions[m.id]).length;
+  const openGroup = state.matches.filter((m) => m.stage === "GROUP" && !m.locked);
+  const predictedOpen = openGroup.filter((m) => state.me?.predictions[m.id]).length;
   const myRow = live?.leaderboard.find((r) => r.playerId === player.id);
   const rank = myRow ? live!.leaderboard.findIndex((r) => r.playerId === player.id) + 1 : null;
+  const liveCount = live?.matches.filter((m) => m.status === "LIVE").length ?? 0;
   const nextMatch = open[0];
 
   return (
-    <div className="space-y-5">
-      <Hero />
+    <div className="stack">
+      <Hero nextKickoff={nextMatch?.kickoff} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Your points" value={myRow ? myRow.total : 0} accent />
-        <Stat label="Your rank" value={rank ? `#${rank} of ${live!.leaderboard.length}` : "—"} />
-        <Stat label="Open matches predicted" value={`${predictedOpen} / ${open.length}`} />
+      <div className="stats">
+        <div className="stat is-accent">
+          <div className="l">Your points</div>
+          <div className="v num">{myRow ? myRow.total : 0}</div>
+        </div>
+        <div className="stat">
+          <div className="l">Your rank</div>
+          <div className="v num">{rank ? <>#{rank}<small> / {live!.leaderboard.length}</small></> : "—"}</div>
+        </div>
+        <div className="stat">
+          <div className="l">Group games</div>
+          <div className="v num">{predictedOpen}<small>/{openGroup.length}</small></div>
+        </div>
       </div>
 
-      <Card className="p-5">
-        <h2 className="text-lg font-bold text-slate-800">Welcome back, {player.name} 👋</h2>
-        {nextMatch ? (
-          <p className="mt-1 text-sm text-slate-500">
-            Next up: {nextMatch.home?.name ?? nextMatch.homeLabel} vs{" "}
-            {nextMatch.away?.name ?? nextMatch.awayLabel} ·{" "}
-            {new Date(nextMatch.kickoff).toLocaleString()}
-          </p>
-        ) : (
-          <p className="mt-1 text-sm text-slate-500">The tournament is underway — check the table!</p>
-        )}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link href="/predict"><Button>Make / update predictions</Button></Link>
-          <Link href="/matches"><Button variant="ghost">Live matches</Button></Link>
-          <Link href="/leaderboard"><Button variant="ghost">Leaderboard</Button></Link>
+      <Card>
+        <div className="card__body">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <h2 className="disp" style={{ fontSize: 21 }}>Welcome back, {player.name}</h2>
+              {nextMatch ? (
+                <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
+                  Next up: <b style={{ color: "var(--ink)" }}>{nextMatch.home?.name ?? nextMatch.homeLabel} v {nextMatch.away?.name ?? nextMatch.awayLabel}</b> · {new Date(nextMatch.kickoff).toLocaleString()}
+                </p>
+              ) : (
+                <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>The tournament is underway — check the table!</p>
+              )}
+            </div>
+            {liveCount > 0 && (
+              <span className="chip chip--grass"><span className="live-dot" /> Matchday live</span>
+            )}
+          </div>
+          <div className="row wrap mt">
+            <Link href="/predict"><Button>Make / update predictions</Button></Link>
+            <Link href="/matches"><Button variant="ghost">Live matches</Button></Link>
+            <Link href="/leaderboard"><Button variant="ghost">Leaderboard</Button></Link>
+          </div>
         </div>
       </Card>
 
-      <button onClick={onSignOut} className="text-sm text-slate-400 underline hover:text-slate-600">
-        Sign out
-      </button>
+      <ChangePasscode />
+
+      <div className="center">
+        <button className="signout" onClick={onSignOut}>Sign out</button>
+      </div>
     </div>
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+function ChangePasscode() {
+  const player = getPlayer();
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  if (!player) return null;
+
+  async function save() {
+    if (!player) return;
+    if (!/^[A-Za-z0-9]{4,20}$/.test(next)) return setMsg({ kind: "error", text: "New passcode must be 4–20 letters or numbers." });
+    setBusy(true);
+    const res = await postJSON("/api/players/passcode", { playerId: player.id, pin: cur, newPin: next });
+    setBusy(false);
+    if (!res.ok) return setMsg({ kind: "error", text: res.error });
+    setPlayer({ ...player, pin: next });
+    setCur(""); setNext("");
+    setMsg({ kind: "success", text: "Passcode changed." });
+  }
+
   return (
-    <Card className={`p-4 ${accent ? "ring-2 ring-emerald-500/30" : ""}`}>
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</div>
-      <div className={`mt-1 text-2xl font-extrabold ${accent ? "text-emerald-600" : "text-slate-800"}`}>
-        {value}
-      </div>
-    </Card>
+    <details>
+      <summary className="signout" style={{ cursor: "pointer", listStyle: "none" }}>Change passcode</summary>
+      <Card className="mt">
+        <div className="card__body stack-sm" style={{ maxWidth: 360 }}>
+          <div className="field">
+            <label>Current passcode</label>
+            <input className="input" type="password" value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="off" />
+          </div>
+          <div className="field">
+            <label>New passcode</label>
+            <input className="input" value={next} onChange={(e) => setNext(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 20))} autoComplete="off" />
+          </div>
+          {msg && <Message kind={msg.kind}>{msg.text}</Message>}
+          <Button onClick={save} disabled={busy || !cur || next.length < 4}>{busy ? "Saving…" : "Change passcode"}</Button>
+        </div>
+      </Card>
+    </details>
   );
 }

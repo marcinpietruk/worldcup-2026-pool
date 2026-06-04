@@ -1,14 +1,23 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Trophy, Medal, Crown, Target, ChartColumn, Award, Brain, Sparkles } from "lucide-react";
 import { getPlayer } from "@/lib/client";
 import { useLive } from "@/lib/useLive";
 import { Card, Spinner, Message } from "@/components/ui";
 
+const BADGE: Record<string, { Icon: typeof Crown; cls: string }> = {
+  "👑": { Icon: Crown, cls: "bdg--sun" },
+  "🎯": { Icon: Target, cls: "bdg--tomato" },
+  "📊": { Icon: ChartColumn, cls: "bdg--sky" },
+  "💯": { Icon: Award, cls: "bdg--grass" },
+  "🧠": { Icon: Brain, cls: "bdg--sky" },
+  "🔮": { Icon: Sparkles, cls: "bdg--sun" },
+};
+
 export default function LeaderboardPage() {
   const { live, error: err } = useLive();
   const meId = getPlayer()?.id;
-  // Remember each player's rank from the previous poll to show movement arrows.
   const prevRanks = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
@@ -16,73 +25,87 @@ export default function LeaderboardPage() {
   }, [live]);
 
   if (err && !live) return <Message kind="error">{err}</Message>;
-  if (!live) return <Spinner />;
+  if (!live) return <Spinner label="Loading the table…" />;
 
   const rows = live.leaderboard;
-  const medals = ["🥇", "🥈", "🥉"];
-  const movementOf = (playerId: string, idx: number): number => {
-    const prev = prevRanks.current.get(playerId);
-    return prev === undefined ? 0 : prev - idx; // + = moved up
+  const movementOf = (id: string, idx: number) => {
+    const prev = prevRanks.current.get(id);
+    return prev === undefined ? 0 : prev - idx;
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Leaderboard</h1>
-        <span className="text-xs text-slate-400">auto-updating</span>
+    <div className="stack">
+      <div className="pagehead">
+        <div>
+          <h1>The Table</h1>
+          <div className="sub">Most points wins · auto-updating</div>
+        </div>
+        <div className="tag">{rows.length} players</div>
       </div>
 
       {rows.length === 0 ? (
         <Message kind="info">No players yet — be the first to join and predict!</Message>
       ) : (
-        <Card className="overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
-              <tr>
-                <th className="px-3 py-2 w-12">#</th>
-                <th className="px-3 py-2">Player</th>
-                <th className="px-2 py-2 text-right">Match</th>
-                <th className="px-2 py-2 text-right">Bracket</th>
-                <th className="px-2 py-2 text-right">Bonus</th>
-                <th className="px-3 py-2 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((r, i) => {
-                const isMe = r.playerId === meId;
-                const move = movementOf(r.playerId, i);
-                return (
-                  <tr key={r.playerId} className={isMe ? "bg-emerald-50" : ""}>
-                    <td className="px-3 py-2 font-bold text-slate-500">
-                      <span className="inline-flex items-center gap-1">
-                        {medals[i] ?? i + 1}
-                        {move > 0 && <span className="text-xs text-emerald-500" title={`up ${move}`}>▲</span>}
-                        {move < 0 && <span className="text-xs text-rose-500" title={`down ${-move}`}>▼</span>}
+        <Card className="lb">
+          <div className="lb__row lb__cols head">
+            <div>#</div>
+            <div>Player</div>
+            <div className="colcell">Mch</div>
+            <div className="colcell">Brk</div>
+            <div className="colcell">Bon</div>
+            <div style={{ textAlign: "right" }}>Total</div>
+          </div>
+          {rows.map((r, i) => {
+            const isMe = r.playerId === meId;
+            const move = movementOf(r.playerId, i);
+            return (
+              <div key={r.playerId} className={`lb__row lb__cols${isMe ? " me" : ""}`}>
+                <div className="rk">
+                  {i === 0 ? (
+                    <span className="medalc medalc--g"><Trophy className="ic-svg" /></span>
+                  ) : i === 1 ? (
+                    <span className="medalc medalc--s"><Medal className="ic-svg" /></span>
+                  ) : i === 2 ? (
+                    <span className="medalc medalc--b"><Medal className="ic-svg" /></span>
+                  ) : (
+                    i + 1
+                  )}
+                  {move > 0 && <span className="mv up" title={`up ${move}`}>▲{move}</span>}
+                  {move < 0 && <span className="mv dn" title={`down ${-move}`}>▼{-move}</span>}
+                </div>
+                <div className="lp">
+                  <div className="nm">
+                    {r.name}
+                    {isMe && <span className="you">you</span>}
+                    {r.badges.length > 0 && (
+                      <span className="badges">
+                        {r.badges.map((b) => {
+                          const m = BADGE[b.icon];
+                          if (!m) return null;
+                          const Icon = m.Icon;
+                          return (
+                            <span key={b.label} className={`bdg ${m.cls}`} title={b.label}>
+                              <Icon className="ic-svg" />
+                            </span>
+                          );
+                        })}
                       </span>
-                    </td>
-                    <td className="px-3 py-2 font-semibold text-slate-800">
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.name} {isMe && <span className="text-xs font-normal text-emerald-600">(you)</span>}
-                        {r.badges.map((b) => (
-                          <span key={b.label} title={b.label}>{b.icon}</span>
-                        ))}
-                      </span>
-                      <div className="text-xs font-normal text-slate-400">
-                        {r.exactHits} exact · {r.resultHits} results
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-right text-slate-500">{r.matchPoints}</td>
-                    <td className="px-2 py-2 text-right text-slate-500">{r.bracketPoints}</td>
-                    <td className="px-2 py-2 text-right text-slate-500">{r.bonusPoints}</td>
-                    <td className="px-3 py-2 text-right text-lg font-extrabold text-emerald-600">{r.total}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    )}
+                  </div>
+                  <div className="sub">{r.exactHits} exact · {r.resultHits} results</div>
+                </div>
+                <div className="colcell">{r.matchPoints}</div>
+                <div className="colcell">{r.bracketPoints}</div>
+                <div className="colcell">{r.bonusPoints}</div>
+                <div className="lb-tot">
+                  <div className="t num">{r.total}</div>
+                </div>
+              </div>
+            );
+          })}
         </Card>
       )}
-      <p className="text-center text-xs text-slate-400">
+      <p className="center muted" style={{ fontSize: 12 }}>
         Ties broken by most exact scores, then most correct results.
       </p>
     </div>

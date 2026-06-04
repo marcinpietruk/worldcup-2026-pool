@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   playerId: z.string().min(1),
-  pin: z.string().regex(/^\d{4}$/),
+  pin: z.string().min(1),
   predictions: z
     .array(
       z.object({
