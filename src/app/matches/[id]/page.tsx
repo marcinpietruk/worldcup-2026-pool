@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { getPlayer, getJSON, type MatchDTO } from "@/lib/client";
-import { Card, Spinner, Message } from "@/components/ui";
+import { getPlayer, getJSON, postJSON, type MatchDTO } from "@/lib/client";
+import { Card, Button, Spinner, Message } from "@/components/ui";
 import { Flag } from "@/components/Flag";
 import { STAGE_LABEL, formatKickoff, sideOf } from "@/lib/format";
 
 type Pick = { playerId: string; player: string; homeScore: number; awayScore: number; points: number };
-type Detail = { match: MatchDTO; revealed: boolean; picks: Pick[] | null; predictionCount: number };
+type CommentDTO = { id: string; playerId: string; player: string; body: string; createdAt: string };
+type Detail = { match: MatchDTO; revealed: boolean; picks: Pick[] | null; predictionCount: number; comments: CommentDTO[] };
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,9 +18,10 @@ export default function MatchDetailPage() {
   const [err, setErr] = useState<string | null>(null);
   const meId = getPlayer()?.id;
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getJSON<Detail>(`/api/matches/${id}`).then(setData).catch((e) => setErr(String(e)));
   }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   if (err) return <Message kind="error">{err}</Message>;
   if (!data) return <Spinner />;
@@ -79,6 +81,54 @@ export default function MatchDetailPage() {
           )}
         </Card>
       )}
+
+      <Comments matchId={id} comments={data.comments} onPosted={load} />
     </div>
+  );
+}
+
+function Comments({ matchId, comments, onPosted }: { matchId: string; comments: CommentDTO[]; onPosted: () => void }) {
+  const meId = getPlayer()?.id;
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function post() {
+    const player = getPlayer();
+    if (!player) return setErr("Join first to chime in.");
+    if (!body.trim()) return;
+    setBusy(true);
+    const res = await postJSON(`/api/matches/${matchId}/comments`, { playerId: player.id, pin: player.pin, body });
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    setBody(""); setErr(null);
+    onPosted();
+  }
+
+  return (
+    <Card className="lb">
+      <div className="card__head">💬 Trash talk ({comments.length})</div>
+      <div className="card__body stack-sm">
+        {comments.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No comments yet — start the banter.</p>}
+        {comments.map((c) => (
+          <div key={c.id} style={{ borderBottom: "var(--bd-thin)", paddingBottom: 8 }}>
+            <div style={{ fontSize: 12.5 }}>
+              <b style={{ color: c.playerId === meId ? "var(--grass-ink)" : "var(--ink)" }}>{c.player}</b>{" "}
+              <span className="muted">· {new Date(c.createdAt).toLocaleString()}</span>
+            </div>
+            <div style={{ fontSize: 14 }}>{c.body}</div>
+          </div>
+        ))}
+        {getPlayer() ? (
+          <div className="row" style={{ alignItems: "flex-start" }}>
+            <input className="input" value={body} onChange={(e) => setBody(e.target.value.slice(0, 280))} placeholder="Say something…" onKeyDown={(e) => { if (e.key === "Enter") post(); }} />
+            <Button onClick={post} disabled={busy || !body.trim()}>Post</Button>
+          </div>
+        ) : (
+          <p className="muted" style={{ fontSize: 13 }}>Join to join the banter.</p>
+        )}
+        {err && <Message kind="error">{err}</Message>}
+      </div>
+    </Card>
   );
 }

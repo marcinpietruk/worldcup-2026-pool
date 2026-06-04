@@ -74,6 +74,7 @@ model Match {
   winnerTeamId String?
 
   predictions Prediction[]
+  comments    Comment[]
 
   @@index([stage])
   @@index([kickoff])
@@ -97,6 +98,21 @@ model Player {
   predictions     Prediction[]
   bracketPicks    BracketPrediction[]
   bonusPrediction BonusPrediction?
+  comments        Comment[]
+}
+
+// Match banter — "trash talk" thread shown on the match detail page.
+model Comment {
+  id        String   @id @default(cuid())
+  matchId   String
+  playerId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
 }
 
 // A predicted scoreline for one match.

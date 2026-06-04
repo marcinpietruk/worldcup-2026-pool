@@ -76,6 +76,20 @@ dev; the secret worth setting is `ADMIN_PASSWORD` (defaults to `changeme-admin`)
 ## Deploying (later)
 
 Runs anywhere with Node + a Postgres connection string. Intended target: Vercel (free tier) + hosted
-Postgres (Neon / Supabase / Vercel Postgres). Set `DATABASE_URL`, `ADMIN_PASSWORD`, `FOOTBALL_API_KEY`,
+Postgres (Neon / Supabase / Vercel Postgres). Set `DATABASE_URL`, `ADMIN_PASSWORD`, `FOOTBALL_DATA_TOKEN`,
 `REFRESH_SECRET` as env vars and deploy — `npm run build` runs `prisma migrate deploy` automatically.
 Seed production once via **/admin → Tools → Re-seed fixtures** (or `POST /api/admin/seed`).
+
+### Live-score scheduler (so scores update when nobody has the page open)
+
+A GitHub Actions workflow (`.github/workflows/refresh.yml`) pings `/api/refresh` every 5 minutes. The
+endpoint is **smart** — it only calls the football API when a match is live or kicking off within
+15 min, so it's near-real-time during games and a free no-op otherwise (`?force=1` syncs regardless).
+To activate after deploying, add two **repository secrets** (Settings → Secrets and variables → Actions):
+
+- `APP_URL` — your deployed base URL (e.g. `https://your-app.vercel.app`)
+- `REFRESH_SECRET` — must match the deployed env var
+
+(Alternatively, point a free [cron-job.org](https://cron-job.org) job at `APP_URL/api/refresh?secret=…`.)
+When someone has the Matches/Leaderboard page open, the client also polls every ~20–60s, so the cron is
+just the safety net for when nobody's watching.

@@ -43,6 +43,26 @@ async function desiredIntervalMs(now: number): Promise<number> {
   return 6 * 60 * MIN;
 }
 
+// Is there a match live (or kicked-off-not-final), or kicking off within 15 min?
+// Used by the external scheduler so a fixed cron only spends an upstream call
+// when a game actually warrants it — cheap no-op the rest of the time.
+export async function shouldSyncNow(now = Date.now()): Promise<boolean> {
+  const [liveOrStale, next] = await Promise.all([
+    prisma.match.count({
+      where: {
+        OR: [{ status: "LIVE" }, { AND: [{ kickoff: { lte: new Date(now) } }, { status: { not: "FINISHED" } }] }],
+      },
+    }),
+    prisma.match.findFirst({
+      where: { kickoff: { gt: new Date(now) } },
+      orderBy: { kickoff: "asc" },
+      select: { kickoff: true },
+    }),
+  ]);
+  if (liveOrStale > 0) return true;
+  return !!next && next.kickoff.getTime() - now <= 15 * MIN;
+}
+
 // Called from /api/live. Runs a sync only when one is due given the schedule;
 // otherwise returns immediately and the client just reads current DB state.
 export async function maybeSync(): Promise<void> {

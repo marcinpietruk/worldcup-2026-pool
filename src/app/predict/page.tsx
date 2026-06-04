@@ -9,11 +9,12 @@ import {
   postJSON,
   type StateResponse,
   type MatchDTO,
-  type TeamDTO,
 } from "@/lib/client";
 import { Card, Button, Message, Spinner, SectionTitle } from "@/components/ui";
 import { Flag } from "@/components/Flag";
 import { BracketBoard } from "@/components/BracketBoard";
+import { Combobox } from "@/components/Combobox";
+import { GOLDEN_BOOT_CANDIDATES } from "@/lib/goldenBoot";
 import { formatKickoff, sideOf } from "@/lib/format";
 
 type Tab = "matches" | "bracket" | "bonus";
@@ -265,17 +266,26 @@ function BonusTab({ state, onSaved }: { state: StateResponse; onSaved: () => Pro
     await onSaved();
   }
 
+  const teamOpts = [...state.teams].sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: t.id, label: t.name, iso2: t.iso2 }));
+  const candidateOpts = GOLDEN_BOOT_CANDIDATES.map((c) => ({ value: c.name, label: c.name, sub: c.team }));
+
   return (
     <div className="stack">
       <SectionTitle sub="One-off calls for the whole tournament. Lock at the first kickoff.">Tournament bonuses</SectionTitle>
       {locked && <Message kind="info">🔒 Bonus picks are locked — the tournament has started.</Message>}
       <Card>
         <div className="card__body stack-sm">
-          <BonusSelect label={`Champion · +${state.settings.bonusTournamentChampion} pts`} value={champion} onChange={setChampion} teams={state.teams} disabled={locked} />
-          <BonusSelect label={`Runner-up · +${state.settings.bonusRunnerUp} pts`} value={runnerUp} onChange={setRunnerUp} teams={state.teams} disabled={locked} />
+          <div className="field">
+            <label>Champion · +{state.settings.bonusTournamentChampion} pts</label>
+            <Combobox value={champion} onChange={setChampion} options={teamOpts} placeholder="Pick a team" disabled={locked} />
+          </div>
+          <div className="field">
+            <label>Runner-up · +{state.settings.bonusRunnerUp} pts</label>
+            <Combobox value={runnerUp} onChange={setRunnerUp} options={teamOpts} placeholder="Pick a team" disabled={locked} />
+          </div>
           <div className="field">
             <label>Golden Boot (top scorer) · +{state.settings.bonusGoldenBoot} pts</label>
-            <input className="input" value={golden} onChange={(e) => setGolden(e.target.value)} disabled={locked} placeholder="Player name" />
+            <Combobox value={golden} onChange={setGolden} options={candidateOpts} placeholder="Search a player, or type any name" allowCustom disabled={locked} />
           </div>
         </div>
       </Card>
@@ -287,16 +297,3 @@ function BonusTab({ state, onSaved }: { state: StateResponse; onSaved: () => Pro
   );
 }
 
-function BonusSelect({ label, value, onChange, teams, disabled }: { label: string; value: string; onChange: (v: string) => void; teams: TeamDTO[]; disabled?: boolean }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      <select className="select" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
-        <option value="">— pick a team —</option>
-        {[...teams].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
-          <option key={t.id} value={t.id}>{t.name}</option>
-        ))}
-      </select>
-    </div>
-  );
-}

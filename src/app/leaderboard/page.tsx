@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Trophy, Medal, Crown, Target, ChartColumn, Award, Brain, Sparkles } from "lucide-react";
+import { Trophy, Medal, Crown, Target, ChartColumn, Award, Brain, Sparkles, Flame } from "lucide-react";
 import { getPlayer } from "@/lib/client";
 import { useLive } from "@/lib/useLive";
 import { Card, Spinner, Message } from "@/components/ui";
 
 const BADGE: Record<string, { Icon: typeof Crown; cls: string }> = {
   "👑": { Icon: Crown, cls: "bdg--sun" },
+  "🔥": { Icon: Flame, cls: "bdg--tomato" },
   "🎯": { Icon: Target, cls: "bdg--tomato" },
   "📊": { Icon: ChartColumn, cls: "bdg--sky" },
   "💯": { Icon: Award, cls: "bdg--grass" },

@@ -16,6 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         homeTeam: true,
         awayTeam: true,
         predictions: { include: { player: { select: { id: true, name: true } } } },
+        comments: { include: { player: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
       },
     });
     if (!match) return bad("Match not found.", 404);
@@ -35,7 +36,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           .sort((a, b) => b.points - a.points || a.player.localeCompare(b.player))
       : null;
 
-    return ok({ match: serializeMatch(match), revealed, picks, predictionCount: match.predictions.length });
+    const comments = match.comments.map((c) => ({
+      id: c.id,
+      playerId: c.playerId,
+      player: c.player.name,
+      body: c.body,
+      createdAt: c.createdAt.toISOString(),
+    }));
+
+    return ok({ match: serializeMatch(match), revealed, picks, predictionCount: match.predictions.length, comments });
   } catch (e) {
     return serverError(e);
   }

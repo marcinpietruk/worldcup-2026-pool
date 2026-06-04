@@ -205,6 +205,7 @@ export type LeaderboardRow = {
   bonusPoints: number;
   exactHits: number;
   resultHits: number;
+  streak: number;
   badges: Badge[];
 };
 
@@ -216,7 +217,7 @@ export async function buildLeaderboard(): Promise<LeaderboardRow[]> {
           points: true,
           homeScore: true,
           awayScore: true,
-          match: { select: { homeScore: true, awayScore: true, status: true } },
+          match: { select: { homeScore: true, awayScore: true, status: true, kickoff: true } },
         },
       },
       bracketPicks: { select: { points: true } },
@@ -243,6 +244,13 @@ export async function buildLeaderboard(): Promise<LeaderboardRow[]> {
       else if (Math.sign(x.homeScore - x.awayScore) === Math.sign(m.homeScore - m.awayScore))
         resultHits++;
     }
+    // Current streak: trailing run of correct (points > 0) finished predictions
+    // in chronological order.
+    const finished = p.predictions
+      .filter((x) => x.match.status === "FINISHED" && x.match.homeScore != null)
+      .sort((a, b) => a.match.kickoff.getTime() - b.match.kickoff.getTime());
+    let streak = 0;
+    for (const x of finished) streak = x.points > 0 ? streak + 1 : 0;
     return {
       playerId: p.id,
       name: p.name,
@@ -252,6 +260,7 @@ export async function buildLeaderboard(): Promise<LeaderboardRow[]> {
       bonusPoints,
       exactHits,
       resultHits,
+      streak,
       badges: [] as Badge[],
     };
   });
