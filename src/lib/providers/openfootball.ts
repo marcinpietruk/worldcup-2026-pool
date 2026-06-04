@@ -1,7 +1,8 @@
-import fs from "node:fs";
-import path from "node:path";
 import { canonicalTeamName } from "../teams";
 import { mapStage, parseKickoffUtc, type NormalizedFixture } from "./fixtures";
+// Imported (not fs-read) so the snapshot is bundled into the serverless function
+// on Vercel — otherwise production seeding can't find the file.
+import snapshot from "../../../data/worldcup2026.json";
 
 type RawMatch = {
   round: string;
@@ -13,11 +14,10 @@ type RawMatch = {
   ground?: string;
 };
 
-// Read the bundled openfootball snapshot (no network / no API key required) and
-// normalize it into our fixture shape. This is the canonical fixture list.
+// Normalize the bundled openfootball snapshot (no network / no API key required)
+// into our fixture shape. This is the canonical fixture list.
 export function loadCanonicalFixtures(): NormalizedFixture[] {
-  const file = path.join(process.cwd(), "data", "worldcup2026.json");
-  const raw = JSON.parse(fs.readFileSync(file, "utf8")) as { matches: RawMatch[] };
+  const raw = snapshot as { matches: RawMatch[] };
 
   const fixtures: NormalizedFixture[] = raw.matches.map((m, i) => {
     const stage = mapStage(m.round);
