@@ -355,6 +355,13 @@ a { color: inherit; text-decoration: none; }
 .bseat.clickable:hover { background: var(--surface-2); }
 .bseat.pick.clickable:hover { background: var(--sun-deep); }
 .bseat .seed { font-size: 9.5px; font-weight: 800; color: var(--ink-faint); flex: none; width: 16px; }
+/* per-tie scoreline row inside a bracket match box */
+.bscore { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 6px; border-top: var(--bd-thin); }
+.bsinp { width: 26px; height: 26px; border-radius: 7px; border: 1.5px solid var(--outline); background: var(--surface); color: var(--ink);
+  text-align: center; font-family: var(--font-num); font-weight: 800; font-size: 13px; outline: none; }
+.bsinp:focus { border-color: var(--grass); box-shadow: 0 0 0 2px color-mix(in srgb, var(--grass) 30%, transparent); }
+.jbtn--xs { font-size: 15px; padding: 1px 2px; }
+
 .champ-box { text-align: center; }
 .champ-box .cup { width: 76px; height: 76px; margin: 0 auto; border-radius: var(--r-md); display: grid; place-items: center;
   font-size: 40px; background: var(--sun); border: var(--bd); box-shadow: var(--sh-card); }

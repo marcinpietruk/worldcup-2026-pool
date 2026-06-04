@@ -75,6 +75,7 @@ model Match {
 
   predictions Prediction[]
   comments    Comment[]
+  jokers      Joker[]
 
   @@index([stage])
   @@index([kickoff])
@@ -92,13 +93,26 @@ model Player {
   isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  // The match this player has "jokered" (doubled stakes). One per player.
-  jokerMatchId String?
-
   predictions     Prediction[]
   bracketPicks    BracketPrediction[]
   bonusPrediction BonusPrediction?
   comments        Comment[]
+  jokers          Joker[]
+}
+
+// One joker per "round" (group matchday MD1/MD2/MD3, or knockout stage
+// R32/R16/QF/SF). Backs one match in that round — doubling its scoreline points,
+// or costing the penalty if it flops.
+model Joker {
+  id       String @id @default(cuid())
+  playerId String
+  round    String // MD1 | MD2 | MD3 | R32 | R16 | QF | SF
+  matchId  String
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, round])
 }
 
 // Match banter — "trash talk" thread shown on the match detail page.

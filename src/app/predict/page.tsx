@@ -66,7 +66,7 @@ export default function PredictPage() {
 
 function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => Promise<void> }) {
   const [edits, setEdits] = useState<Record<string, { home: string; away: string }>>({});
-  const [joker, setJokerState] = useState<string | null>(null);
+  const [jokerIds, setJokerIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
@@ -76,7 +76,7 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
       init[id] = { home: String(p.homeScore), away: String(p.awayScore) };
     }
     setEdits(init);
-    setJokerState(state.me?.jokerMatchId ?? null);
+    setJokerIds(state.me?.jokerMatchIds ?? []);
   }, [state]);
 
   const sections = useMemo(() => groupMatches(state.matches), [state.matches]);
@@ -89,11 +89,10 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
   async function toggleJoker(matchId: string) {
     const player = getPlayer();
     if (!player) return;
-    const next = joker === matchId ? null : matchId;
-    const res = await postJSON<{ jokerMatchId: string | null }>("/api/joker", { playerId: player.id, pin: player.pin, matchId: next });
+    const res = await postJSON<{ jokerMatchIds: string[] }>("/api/joker", { playerId: player.id, pin: player.pin, matchId });
     if (!res.ok) return setMsg({ kind: "error", text: res.error });
-    setJokerState(next);
-    setMsg({ kind: "success", text: next ? "⭐ Joker set!" : "Joker cleared." });
+    setJokerIds(res.data.jokerMatchIds);
+    setMsg({ kind: "success", text: "⭐ Joker updated!" });
   }
 
   async function save() {
@@ -117,7 +116,7 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
         Predict the group stage
       </SectionTitle>
       <Message kind="info">
-        ⭐ <b>Joker:</b> star one match to multiply its points ×{state.settings.jokerMultiplier} — a wrong joker costs {state.settings.jokerPenalty}.
+        ⭐ <b>Joker:</b> one per matchday — star a match to multiply its points ×{state.settings.jokerMultiplier} (a wrong joker costs {state.settings.jokerPenalty}). Knockout jokers are in the Bracket tab.
       </Message>
 
       <div className="stack mt">
@@ -136,7 +135,7 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
                   match={m}
                   value={edits[m.id]}
                   onChange={(side, v) => setScore(m.id, side, v)}
-                  isJoker={joker === m.id}
+                  isJoker={jokerIds.includes(m.id)}
                   onToggleJoker={() => toggleJoker(m.id)}
                 />
               ))}
@@ -209,31 +208,45 @@ function groupMatches(matches: MatchDTO[]): Section[] {
 function BracketTab({ state, onSaved }: { state: StateResponse; onSaved: () => Promise<void> }) {
   const status = state.settings.bracketStatus;
   const editable = state.settings.bracketOpen;
+  const [jokerIds, setJokerIds] = useState<string[]>([]);
+  useEffect(() => { setJokerIds(state.me?.jokerMatchIds ?? []); }, [state]);
 
-  async function handleSave(picks: Record<string, string[]>) {
+  async function handleSave(picks: Record<string, string[]>, scores: { matchId: string; homeScore: number; awayScore: number }[]) {
     const player = getPlayer();
     if (!player) return { ok: false as const, error: "Not signed in." };
-    const res = await postJSON("/api/bracket", { playerId: player.id, pin: player.pin, picks });
-    if (res.ok) await onSaved();
-    return res.ok ? { ok: true as const } : { ok: false as const, error: res.error };
+    const a = await postJSON("/api/bracket", { playerId: player.id, pin: player.pin, picks });
+    if (!a.ok) return { ok: false as const, error: a.error };
+    if (scores.length) {
+      const b = await postJSON("/api/predictions", { playerId: player.id, pin: player.pin, predictions: scores });
+      if (!b.ok) return { ok: false as const, error: b.error };
+    }
+    await onSaved();
+    return { ok: true as const };
+  }
+
+  async function toggleJoker(matchId: string) {
+    const player = getPlayer();
+    if (!player) return;
+    const res = await postJSON<{ jokerMatchIds: string[] }>("/api/joker", { playerId: player.id, pin: player.pin, matchId });
+    if (res.ok) setJokerIds(res.data.jokerMatchIds);
   }
 
   return (
     <div className="stack">
-      <SectionTitle sub="Tap a team to send it through the knockouts — your pick flows into the next round.">
+      <SectionTitle sub="Pick who advances and predict each tie's score. ⭐ one joker per round (R32→SF) doubles a tie's points.">
         Knockout bracket
       </SectionTitle>
       {status === "PENDING_GROUPS" && (
         <Message kind="info">
           🔒 The bracket opens once the group stage is over
           {state.settings.groupStageEnd ? ` (around ${new Date(state.settings.groupStageEnd).toLocaleDateString()})` : ""} —
-          the 32 qualified teams drop in, then you tap to advance them.
+          the 32 qualified teams drop in, then you advance them and call the scores.
         </Message>
       )}
       {status === "CLOSED" && <Message kind="info">🔒 Bracket picks are locked — the knockouts have started.</Message>}
-      <Card><div className="card__body"><BracketBoard matches={state.matches} saved={state.me?.bracket ?? {}} editable={editable} onSave={handleSave} /></div></Card>
+      <Card><div className="card__body"><BracketBoard matches={state.matches} saved={state.me?.bracket ?? {}} predictions={state.me?.predictions ?? {}} editable={editable} jokerIds={jokerIds} onToggleJoker={toggleJoker} onSave={handleSave} /></div></Card>
       <p className="muted center" style={{ fontSize: 12 }}>
-        Bonus per correct team — R16 +{state.settings.bonusR16}, QF +{state.settings.bonusQF}, SF +{state.settings.bonusSF}, Final +{state.settings.bonusFinal}, Champion +{state.settings.bonusChampion}.
+        Scorelines: {state.settings.pointsExact} pts exact / {state.settings.pointsResult} pt result · advancement bonus per correct team — R16 +{state.settings.bonusR16}, QF +{state.settings.bonusQF}, SF +{state.settings.bonusSF}, Final +{state.settings.bonusFinal}, Champion +{state.settings.bonusChampion}.
       </p>
     </div>
   );

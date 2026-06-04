@@ -10,7 +10,7 @@ import {
   reconstructWinners,
   type KoStage,
 } from "@/lib/bracket";
-import { Trophy } from "lucide-react";
+import { Trophy, Star } from "lucide-react";
 import { Flag } from "./Flag";
 import { Button } from "./ui";
 
@@ -23,19 +23,27 @@ const STAGE_TITLE: Record<KoStage, string> = {
 };
 
 type Line = { left: number; top: number; width: number; height: number };
+type ScoreEntry = { matchId: string; homeScore: number; awayScore: number };
 
 export function BracketBoard({
   matches,
   saved,
+  predictions,
   editable,
+  jokerIds,
+  onToggleJoker,
   onSave,
 }: {
   matches: MatchDTO[];
   saved: Record<string, string[]>;
+  predictions: Record<string, { homeScore: number; awayScore: number }>;
   editable: boolean;
-  onSave: (picks: Record<string, string[]>) => Promise<{ ok: boolean; error?: string }>;
+  jokerIds: string[];
+  onToggleJoker: (matchId: string) => void;
+  onSave: (picks: Record<string, string[]>, scores: ScoreEntry[]) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const rounds = useMemo(() => bracketRounds(matches), [matches]);
+  const byId = useMemo(() => new Map(matches.map((m) => [m.id, m])), [matches]);
   const teamById = useMemo(() => {
     const map = new Map<string, TeamDTO>();
     for (const m of matches) {
@@ -46,13 +54,17 @@ export function BracketBoard({
   }, [matches]);
 
   const [winners, setWinners] = useState<Record<number, string>>(() => reconstructWinners(saved, rounds));
+  const [scores, setScores] = useState<Record<string, { home: string; away: string }>>(() => {
+    const init: Record<string, { home: string; away: string }> = {};
+    for (const [id, p] of Object.entries(predictions)) init[id] = { home: String(p.homeScore), away: String(p.awayScore) };
+    return init;
+  });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const bracketRef = useRef<HTMLDivElement>(null);
   const [lines, setLines] = useState<Line[]>([]);
 
-  // Draw orthogonal connectors feeder → target after layout.
   useLayoutEffect(() => {
     const cont = bracketRef.current;
     if (!cont) return;
@@ -98,10 +110,17 @@ export function BracketBoard({
     setWinners((prev) => normalizeWinners({ ...prev, [matchNumber]: teamId }, rounds));
     setMsg(null);
   }
+  function setScore(matchId: string, side: "home" | "away", value: string) {
+    const v = value.replace(/\D/g, "").slice(0, 2);
+    setScores((s) => ({ ...s, [matchId]: { home: s[matchId]?.home ?? "", away: s[matchId]?.away ?? "", [side]: v } }));
+  }
 
   async function save() {
     setBusy(true);
-    const res = await onSave(deriveRoundPicks(winners, rounds));
+    const scoreEntries: ScoreEntry[] = Object.entries(scores)
+      .filter(([id, v]) => v.home !== "" && v.away !== "" && !byId.get(id)?.locked)
+      .map(([matchId, v]) => ({ matchId, homeScore: Number(v.home), awayScore: Number(v.away) }));
+    const res = await onSave(deriveRoundPicks(winners, rounds), scoreEntries);
     setBusy(false);
     setMsg({ ok: res.ok, text: res.ok ? "Bracket saved." : res.error ?? "Error" });
   }
@@ -120,10 +139,31 @@ export function BracketBoard({
               <div className="bcol__h">{STAGE_TITLE[round.stage]}</div>
               {round.matches.map((m) => {
                 const [hId, aId] = candidates(m, winners);
+                const bothKnown = !!hId && !!aId;
+                const isJoker = jokerIds.includes(m.id);
+                const sc = scores[m.id];
                 return (
                   <div key={m.id} className="mb" data-mb={m.number}>
                     <Seat teamId={hId} placeholder={m.home?.name ?? m.homeLabel} team={hId ? teamById.get(hId) : undefined} picked={!!hId && winners[m.number] === hId} editable={editable} onClick={() => pick(m.number, hId)} />
                     <Seat teamId={aId} placeholder={m.away?.name ?? m.awayLabel} team={aId ? teamById.get(aId) : undefined} picked={!!aId && winners[m.number] === aId} editable={editable} onClick={() => pick(m.number, aId)} />
+                    {bothKnown && (
+                      <div className="bscore">
+                        {editable && !m.locked ? (
+                          <>
+                            <input className="bsinp" value={sc?.home ?? ""} onChange={(e) => setScore(m.id, "home", e.target.value)} inputMode="numeric" aria-label="home score" />
+                            <span className="colon">:</span>
+                            <input className="bsinp" value={sc?.away ?? ""} onChange={(e) => setScore(m.id, "away", e.target.value)} inputMode="numeric" aria-label="away score" />
+                            <button type="button" className={`jbtn jbtn--xs${isJoker ? "" : " off"}`} onClick={() => onToggleJoker(m.id)} title={isJoker ? "Remove joker" : "Joker this tie"} style={{ color: "var(--gold)" }}>
+                              <Star className="ic-svg" fill={isJoker ? "currentColor" : "none"} />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>
+                            {sc ? `${sc.home}–${sc.away}` : "—"} {isJoker && <span className="star">⭐</span>}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

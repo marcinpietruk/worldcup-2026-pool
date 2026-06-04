@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, bad, serverError } from "@/lib/http";
 import { verifyPin } from "@/lib/auth";
 import { isMatchLocked, recomputeAll } from "@/lib/scoring";
+import { jokerRoundOf } from "@/lib/jokers";
 import { log } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +11,11 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   playerId: z.string().min(1),
   pin: z.string().min(1),
-  matchId: z.string().nullable(), // null clears the joker
+  matchId: z.string().min(1),
 });
 
-// Set (or clear) the player's joker match. Can't be changed once your current
-// joker has kicked off, and you can't joker a match that has already started.
+// Toggle the joker for the match's round. One joker per round (group matchday or
+// knockout stage up to the semis). Re-selecting the same match clears it.
 export async function POST(req: Request) {
   try {
     const parsed = schema.safeParse(await req.json());
@@ -24,22 +25,34 @@ export async function POST(req: Request) {
     const auth = await verifyPin(playerId, pin);
     if (!auth.ok) return bad(auth.error, auth.status);
 
-    if (auth.player.jokerMatchId) {
-      const current = await prisma.match.findUnique({ where: { id: auth.player.jokerMatchId } });
-      if (current && isMatchLocked(current)) {
-        return bad("Your joker is locked in — that match has already kicked off.", 403);
+    const match = await prisma.match.findUnique({ where: { id: matchId } });
+    if (!match) return bad("Match not found.", 404);
+    const round = jokerRoundOf(match);
+    if (!round) return bad("This match can't be jokered.", 400);
+
+    const existing = await prisma.joker.findUnique({ where: { playerId_round: { playerId, round } } });
+
+    if (existing && existing.matchId === matchId) {
+      // Toggle off — unless it's already kicked off.
+      if (isMatchLocked(match)) return bad("That match has kicked off — joker is locked in.", 403);
+      await prisma.joker.delete({ where: { id: existing.id } });
+    } else {
+      if (isMatchLocked(match)) return bad("That match has already kicked off.", 403);
+      if (existing) {
+        const cur = await prisma.match.findUnique({ where: { id: existing.matchId } });
+        if (cur && isMatchLocked(cur)) return bad("Your joker for this round is locked in.", 403);
       }
-    }
-    if (matchId) {
-      const m = await prisma.match.findUnique({ where: { id: matchId } });
-      if (!m) return bad("Match not found.", 404);
-      if (isMatchLocked(m)) return bad("That match has already kicked off.", 403);
+      await prisma.joker.upsert({
+        where: { playerId_round: { playerId, round } },
+        update: { matchId },
+        create: { playerId, round, matchId },
+      });
     }
 
-    await prisma.player.update({ where: { id: playerId }, data: { jokerMatchId: matchId } });
     await recomputeAll();
-    log.info("joker.set", { playerId, matchId });
-    return ok({ jokerMatchId: matchId });
+    log.info("joker.set", { playerId, round, matchId });
+    const jokers = await prisma.joker.findMany({ where: { playerId }, select: { matchId: true } });
+    return ok({ jokerMatchIds: jokers.map((j) => j.matchId) });
   } catch (e) {
     return serverError(e);
   }

@@ -33,7 +33,7 @@ export async function GET(req: Request) {
         if (authed) {
           const full = await prisma.player.findUnique({
             where: { id: playerId },
-            include: { predictions: true, bracketPicks: true, bonusPrediction: true },
+            include: { predictions: true, bracketPicks: true, bonusPrediction: true, jokers: true },
           });
           const predictions: Record<string, { homeScore: number; awayScore: number }> = {};
           for (const p of full!.predictions) {
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
             id: player.id,
             name: player.name,
             authed: true,
-            jokerMatchId: full!.jokerMatchId,
+            jokerMatchIds: full!.jokers.map((j) => j.matchId),
             predictions,
             bracket,
             bonus: full!.bonusPrediction
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
           };
         } else {
           // Known player, but no/invalid passcode — return identity only, no picks.
-          me = { id: player.id, name: player.name, authed: false, jokerMatchId: null, predictions: {}, bracket: { ...EMPTY_BRACKET }, bonus: { ...EMPTY_BONUS } };
+          me = { id: player.id, name: player.name, authed: false, jokerMatchIds: [], predictions: {}, bracket: { ...EMPTY_BRACKET }, bonus: { ...EMPTY_BONUS } };
         }
       }
     }

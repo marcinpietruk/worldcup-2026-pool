@@ -83,16 +83,17 @@ async function doRecomputeAll(): Promise<void> {
 }
 
 async function recomputeMatchPoints(settings: Settings): Promise<void> {
-  const [predictions, players] = await Promise.all([
+  const [predictions, jokers] = await Promise.all([
     prisma.prediction.findMany({ include: { match: true } }),
-    prisma.player.findMany({ select: { id: true, jokerMatchId: true } }),
+    prisma.joker.findMany({ select: { playerId: true, matchId: true } }),
   ]);
-  const jokerOf = new Map(players.map((p) => [p.id, p.jokerMatchId]));
+  // Each (player, match) that has been jokered.
+  const jokered = new Set(jokers.map((j) => `${j.playerId}:${j.matchId}`));
 
   for (const p of predictions) {
     let points = pointsForPrediction(p, p.match, settings);
     // Joker: double a winning pick, but take a penalty on a finished flop.
-    if (jokerOf.get(p.playerId) === p.matchId) {
+    if (jokered.has(`${p.playerId}:${p.matchId}`)) {
       if (points > 0) points *= settings.jokerMultiplier;
       else if (p.match.status === "FINISHED") points = -settings.jokerPenalty;
     }

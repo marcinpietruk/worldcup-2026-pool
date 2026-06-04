@@ -104,7 +104,7 @@ function MatchCard({ match, me, settings }: { match: MatchDTO; me: StateResponse
   const home = sideOf(match, "home");
   const away = sideOf(match, "away");
   const pred = me?.predictions[match.id];
-  const isJoker = me?.jokerMatchId === match.id;
+  const isJoker = me?.jokerMatchIds?.includes(match.id) ?? false;
   const pts = clientPoints(pred, match, settings, isJoker);
   const isLive = match.status === "LIVE";
   const isFin = match.status === "FINISHED";

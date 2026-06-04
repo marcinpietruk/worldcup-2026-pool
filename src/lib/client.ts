@@ -51,7 +51,7 @@ export type MeDTO = {
   predictions: Record<string, { homeScore: number; awayScore: number }>;
   bracket: Record<string, string[]>;
   bonus: { championTeamId: string | null; runnerUpTeamId: string | null; goldenBoot: string | null };
-  jokerMatchId: string | null;
+  jokerMatchIds: string[];
 };
 
 export type StateResponse = {

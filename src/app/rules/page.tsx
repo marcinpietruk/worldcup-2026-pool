@@ -21,13 +21,15 @@ export default function RulesPage() {
             Enter an exact scoreline for every group game. <b>{s.pointsExact} points</b> for the exact score,{" "}
             <b>{s.pointsResult} point</b> for the right result, 0 otherwise. The knockout phase is predicted in the bracket.
           </Rule>
-          <Rule Icon={Star} title="Joker (double-down)">
-            Star one match to <b>multiply its points ×{s.jokerMultiplier}</b> — but a flop costs you{" "}
-            <b>{s.jokerPenalty} points</b>. Move it freely until that match kicks off.
+          <Rule Icon={Star} title="Jokers (double-down)">
+            <b>One joker per round</b> — each group matchday (3) and each knockout round up to the semis (R32→SF).
+            Star a match in that round to <b>multiply its points ×{s.jokerMultiplier}</b>; a flop costs you{" "}
+            <b>{s.jokerPenalty} points</b>. Movable until that match kicks off.
           </Rule>
           <Rule Icon={Goal} title="Knockout bracket">
-            Tap teams through the bracket. Bonus per correct team: R16 <b>+{s.bonusR16}</b>, QF <b>+{s.bonusQF}</b>,
-            SF <b>+{s.bonusSF}</b>, Final <b>+{s.bonusFinal}</b>, Champion <b>+{s.bonusChampion}</b>.
+            Pick who advances <b>and</b> predict each tie&apos;s exact score (same {s.pointsExact}/{s.pointsResult} as the
+            group stage). Advancement bonus per correct team: R16 <b>+{s.bonusR16}</b>, QF <b>+{s.bonusQF}</b>, SF{" "}
+            <b>+{s.bonusSF}</b>, Final <b>+{s.bonusFinal}</b>, Champion <b>+{s.bonusChampion}</b>.
           </Rule>
           <Rule Icon={Sparkles} title="Tournament bonuses">
             Champion <b>+{s.bonusTournamentChampion}</b>, Runner-up <b>+{s.bonusRunnerUp}</b>, Golden Boot{" "}
