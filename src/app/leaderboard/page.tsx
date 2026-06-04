@@ -51,8 +51,8 @@ export default function LeaderboardPage() {
           <div className="lb__row lb__cols head">
             <div>#</div>
             <div>Player</div>
-            <div className="colcell">Mch</div>
-            <div className="colcell">Bon</div>
+            <div className="colcell" title="Match points — all your scoreline predictions (group + knockout)">Match</div>
+            <div className="colcell" title="Bonus points — champion, runner-up and golden boot picks">Bonus</div>
             <div style={{ textAlign: "right" }}>Total</div>
           </div>
           {rows.map((r, i) => {
@@ -105,6 +105,7 @@ export default function LeaderboardPage() {
         </Card>
       )}
       <p className="center muted" style={{ fontSize: 12 }}>
+        <b>Match</b> = points from scorelines (group + knockout) · <b>Bonus</b> = champion, runner-up &amp; golden boot.
         Ties broken by most exact scores, then most correct results.
       </p>
     </div>
