@@ -129,11 +129,6 @@ function ResultRow({ match, teams, password, onSaved }: { match: MatchDTO; teams
 const POINT_FIELDS: { key: keyof SettingsDTO; label: string }[] = [
   { key: "pointsExact", label: "Exact score" },
   { key: "pointsResult", label: "Correct result" },
-  { key: "bonusR16", label: "Reach R16 (each)" },
-  { key: "bonusQF", label: "Reach QF (each)" },
-  { key: "bonusSF", label: "Reach SF (each)" },
-  { key: "bonusFinal", label: "Reach Final (each)" },
-  { key: "bonusChampion", label: "Bracket champion" },
   { key: "bonusTournamentChampion", label: "Bonus: Champion" },
   { key: "bonusRunnerUp", label: "Bonus: Runner-up" },
   { key: "bonusGoldenBoot", label: "Bonus: Golden Boot" },

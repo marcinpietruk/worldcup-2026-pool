@@ -81,11 +81,6 @@ export async function GET(req: Request) {
       settings: {
         pointsExact: settings.pointsExact,
         pointsResult: settings.pointsResult,
-        bonusR16: settings.bonusR16,
-        bonusQF: settings.bonusQF,
-        bonusSF: settings.bonusSF,
-        bonusFinal: settings.bonusFinal,
-        bonusChampion: settings.bonusChampion,
         bonusTournamentChampion: settings.bonusTournamentChampion,
         bonusRunnerUp: settings.bonusRunnerUp,
         bonusGoldenBoot: settings.bonusGoldenBoot,

@@ -6,7 +6,6 @@ type Stats = {
   total: number;
   exactHits: number;
   resultHits: number;
-  bracketPoints: number;
   bonusPoints: number;
   streak: number;
 };
@@ -19,7 +18,6 @@ export function computeBadges(s: Stats, rank: number): Badge[] {
   else if (s.exactHits >= 3) badges.push({ icon: "🎯", label: "Sharpshooter — 3+ exact scores" });
   if (s.resultHits >= 10) badges.push({ icon: "📊", label: "Mr. Consistent — 10+ correct results" });
   if (s.total >= 100) badges.push({ icon: "💯", label: "Centurion — 100+ points" });
-  if (s.bracketPoints >= 10) badges.push({ icon: "🧠", label: "Bracket guru" });
   if (s.bonusPoints >= 10) badges.push({ icon: "🔮", label: "Oracle — nailed a bonus" });
   return badges;
 }

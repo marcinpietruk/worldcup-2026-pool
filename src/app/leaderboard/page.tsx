@@ -52,7 +52,6 @@ export default function LeaderboardPage() {
             <div>#</div>
             <div>Player</div>
             <div className="colcell">Mch</div>
-            <div className="colcell">Brk</div>
             <div className="colcell">Bon</div>
             <div style={{ textAlign: "right" }}>Total</div>
           </div>
@@ -96,7 +95,6 @@ export default function LeaderboardPage() {
                   <div className="sub">{r.exactHits} exact · {r.resultHits} results</div>
                 </div>
                 <div className="colcell">{r.matchPoints}</div>
-                <div className="colcell">{r.bracketPoints}</div>
                 <div className="colcell">{r.bonusPoints}</div>
                 <div className="lb-tot">
                   <div className="t num">{r.total}</div>

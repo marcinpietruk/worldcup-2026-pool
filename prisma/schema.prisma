@@ -198,17 +198,18 @@ model Settings {
   pointsExact  Int @default(3)
   pointsResult Int @default(1)
 
-  // Knockout-advancement bonus, per correct team reaching a round.
-  bonusR16      Int @default(1)
-  bonusQF       Int @default(2)
-  bonusSF       Int @default(3)
-  bonusFinal    Int @default(4)
-  bonusChampion Int @default(6)
+  // Deprecated knockout-advancement bonuses — kept at 0 (knockout ties now score
+  // like the group stage). Columns retained to avoid a destructive migration.
+  bonusR16      Int @default(0)
+  bonusQF       Int @default(0)
+  bonusSF       Int @default(0)
+  bonusFinal    Int @default(0)
+  bonusChampion Int @default(0)
 
-  // Tournament-long bonuses.
-  bonusTournamentChampion Int @default(10)
-  bonusRunnerUp           Int @default(5)
-  bonusGoldenBoot         Int @default(8)
+  // Tournament-long bonuses (locked at the first kickoff).
+  bonusTournamentChampion Int @default(25)
+  bonusRunnerUp           Int @default(15)
+  bonusGoldenBoot         Int @default(10)
 
   // Joker / double-down: your one jokered match scores ×multiplier if you get
   // points, but costs you `jokerPenalty` if it flops (0 base points).

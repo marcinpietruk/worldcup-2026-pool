@@ -26,11 +26,6 @@ export type MatchDTO = {
 export type SettingsDTO = {
   pointsExact: number;
   pointsResult: number;
-  bonusR16: number;
-  bonusQF: number;
-  bonusSF: number;
-  bonusFinal: number;
-  bonusChampion: number;
   bonusTournamentChampion: number;
   bonusRunnerUp: number;
   bonusGoldenBoot: number;
@@ -67,7 +62,6 @@ export type LeaderboardRow = {
   name: string;
   total: number;
   matchPoints: number;
-  bracketPoints: number;
   bonusPoints: number;
   exactHits: number;
   resultHits: number;

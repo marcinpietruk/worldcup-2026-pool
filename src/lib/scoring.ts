@@ -78,7 +78,6 @@ export function recomputeAll(): Promise<void> {
 async function doRecomputeAll(): Promise<void> {
   const settings = await getSettings();
   await recomputeMatchPoints(settings);
-  await recomputeBracketPoints(settings);
   await recomputeBonusPoints(settings);
 }
 
@@ -103,20 +102,6 @@ async function recomputeMatchPoints(settings: Settings): Promise<void> {
   }
 }
 
-// Teams that actually appear (as either side) in matches of a given stage.
-async function teamsInStage(stage: Match["stage"]): Promise<Set<string>> {
-  const matches = await prisma.match.findMany({
-    where: { stage },
-    select: { homeTeamId: true, awayTeamId: true },
-  });
-  const ids = new Set<string>();
-  for (const m of matches) {
-    if (m.homeTeamId) ids.add(m.homeTeamId);
-    if (m.awayTeamId) ids.add(m.awayTeamId);
-  }
-  return ids;
-}
-
 // Winner / loser of the final, once it has finished.
 async function finalOutcome(): Promise<{ champion?: string; runnerUp?: string }> {
   const final = await prisma.match.findFirst({ where: { stage: "FINAL" } });
@@ -135,35 +120,6 @@ async function finalOutcome(): Promise<{ champion?: string; runnerUp?: string }>
   if (!champion) return {};
   const runnerUp = champion === final.homeTeamId ? final.awayTeamId : final.homeTeamId;
   return { champion, runnerUp };
-}
-
-async function recomputeBracketPoints(settings: Settings): Promise<void> {
-  const reached: Record<string, Set<string>> = {
-    R16: await teamsInStage("R16"),
-    QF: await teamsInStage("QF"),
-    SF: await teamsInStage("SF"),
-    FINAL: await teamsInStage("FINAL"),
-  };
-  const { champion } = await finalOutcome();
-
-  const bonusByRound: Record<string, number> = {
-    R16: settings.bonusR16,
-    QF: settings.bonusQF,
-    SF: settings.bonusSF,
-    FINAL: settings.bonusFinal,
-    CHAMPION: settings.bonusChampion,
-  };
-
-  const picks = await prisma.bracketPrediction.findMany();
-  for (const pick of picks) {
-    let correct = false;
-    if (pick.round === "CHAMPION") correct = champion === pick.teamId;
-    else correct = reached[pick.round]?.has(pick.teamId) ?? false;
-    const points = correct ? bonusByRound[pick.round] : 0;
-    if (points !== pick.points) {
-      await prisma.bracketPrediction.update({ where: { id: pick.id }, data: { points } });
-    }
-  }
 }
 
 async function recomputeBonusPoints(settings: Settings): Promise<void> {
@@ -202,7 +158,6 @@ export type LeaderboardRow = {
   name: string;
   total: number;
   matchPoints: number;
-  bracketPoints: number;
   bonusPoints: number;
   exactHits: number;
   resultHits: number;
@@ -221,14 +176,12 @@ export async function buildLeaderboard(): Promise<LeaderboardRow[]> {
           match: { select: { homeScore: true, awayScore: true, status: true, kickoff: true } },
         },
       },
-      bracketPicks: { select: { points: true } },
       bonusPrediction: true,
     },
   });
 
   const rows: LeaderboardRow[] = players.map((p) => {
     const matchPoints = p.predictions.reduce((s, x) => s + x.points, 0);
-    const bracketPoints = p.bracketPicks.reduce((s, x) => s + x.points, 0);
     const bonusPoints = p.bonusPrediction
       ? p.bonusPrediction.championPoints +
         p.bonusPrediction.runnerUpPoints +
@@ -255,9 +208,8 @@ export async function buildLeaderboard(): Promise<LeaderboardRow[]> {
     return {
       playerId: p.id,
       name: p.name,
-      total: matchPoints + bracketPoints + bonusPoints,
+      total: matchPoints + bonusPoints,
       matchPoints,
-      bracketPoints,
       bonusPoints,
       exactHits,
       resultHits,

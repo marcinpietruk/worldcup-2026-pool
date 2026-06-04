@@ -27,13 +27,13 @@ export default function RulesPage() {
             <b>{s.jokerPenalty} points</b>. Movable until that match kicks off.
           </Rule>
           <Rule Icon={Goal} title="Knockout bracket">
-            Pick who advances <b>and</b> predict each tie&apos;s exact score (same {s.pointsExact}/{s.pointsResult} as the
-            group stage). Advancement bonus per correct team: R16 <b>+{s.bonusR16}</b>, QF <b>+{s.bonusQF}</b>, SF{" "}
-            <b>+{s.bonusSF}</b>, Final <b>+{s.bonusFinal}</b>, Champion <b>+{s.bonusChampion}</b>.
+            Advance teams through the bracket so each tie has a matchup, then predict its exact score. Ties score
+            exactly like the group stage — <b>{s.pointsExact} pts</b> exact, <b>{s.pointsResult} pt</b> result.
+            There&apos;s <b>no separate bonus</b> for picking who advances; your joker still doubles a tie.
           </Rule>
           <Rule Icon={Sparkles} title="Tournament bonuses">
-            Champion <b>+{s.bonusTournamentChampion}</b>, Runner-up <b>+{s.bonusRunnerUp}</b>, Golden Boot{" "}
-            <b>+{s.bonusGoldenBoot}</b>.
+            Locked in before any game starts: Champion <b>+{s.bonusTournamentChampion}</b>, Runner-up{" "}
+            <b>+{s.bonusRunnerUp}</b>, Golden Boot <b>+{s.bonusGoldenBoot}</b>.
           </Rule>
           <Rule Icon={Lock} title="Locking">
             Match picks lock at kickoff. The bracket opens once the group stage is over

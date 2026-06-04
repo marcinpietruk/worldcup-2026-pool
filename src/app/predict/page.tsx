@@ -270,7 +270,7 @@ function BracketTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
       {status === "CLOSED" && <Message kind="info">🔒 Bracket picks are locked — the knockouts have started.</Message>}
       <Card><div className="card__body"><BracketBoard matches={state.matches} saved={state.me?.bracket ?? {}} predictions={state.me?.predictions ?? {}} editable={editable} jokerIds={jokerIds} onToggleJoker={toggleJoker} onSave={handleSave} /></div></Card>
       <p className="muted center" style={{ fontSize: 12 }}>
-        Scorelines: {state.settings.pointsExact} pts exact / {state.settings.pointsResult} pt result · advancement bonus per correct team — R16 +{state.settings.bonusR16}, QF +{state.settings.bonusQF}, SF +{state.settings.bonusSF}, Final +{state.settings.bonusFinal}, Champion +{state.settings.bonusChampion}.
+        Knockout ties score just like the group stage — {state.settings.pointsExact} pts exact / {state.settings.pointsResult} pt result. No bonus for picking who advances; your ⭐ joker still doubles a tie.
       </p>
     </div>
   );
