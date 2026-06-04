@@ -79,7 +79,7 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
     setJokerIds(state.me?.jokerMatchIds ?? []);
   }, [state]);
 
-  const sections = useMemo(() => groupMatches(state.matches), [state.matches]);
+  const sections = useMemo(() => matchdaySections(state.matches), [state.matches]);
 
   function setScore(id: string, side: "home" | "away", value: string) {
     const v = value.replace(/\D/g, "").slice(0, 2);
@@ -120,28 +120,42 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
       </Message>
 
       <div className="stack mt">
-        {sections.map((sec) => (
-          <Card key={sec.key} className="overflow-hidden">
-            <div className="grouphead">
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {sec.group && <span className="gp">{sec.group}</span>}
-                {sec.title}
-              </span>
-            </div>
-            <div>
-              {sec.matches.map((m) => (
-                <ScoreRow
-                  key={m.id}
-                  match={m}
-                  value={edits[m.id]}
-                  onChange={(side, v) => setScore(m.id, side, v)}
-                  isJoker={jokerIds.includes(m.id)}
-                  onToggleJoker={() => toggleJoker(m.id)}
-                />
-              ))}
-            </div>
-          </Card>
-        ))}
+        {sections.map((sec) => {
+          const jokerMatch = sec.matches.find((m) => jokerIds.includes(m.id));
+          return (
+            <Card key={sec.key} className="overflow-hidden">
+              <div className="grouphead">
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="gp">{sec.md}</span> Matchday {sec.md}
+                </span>
+                {jokerMatch ? (
+                  <span
+                    className="chip"
+                    title={`Your joker this matchday: ${sideOf(jokerMatch, "home").name} v ${sideOf(jokerMatch, "away").name}`}
+                    style={{ display: "inline-block", maxWidth: "62%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
+                    ⭐ {sideOf(jokerMatch, "home").name} v {sideOf(jokerMatch, "away").name}
+                  </span>
+                ) : (
+                  <span className="chip chip--ghost">⭐ 1 joker — tap a star</span>
+                )}
+              </div>
+              <div>
+                {sec.matches.map((m) => (
+                  <ScoreRow
+                    key={m.id}
+                    match={m}
+                    group={m.group}
+                    value={edits[m.id]}
+                    onChange={(side, v) => setScore(m.id, side, v)}
+                    isJoker={jokerIds.includes(m.id)}
+                    onToggleJoker={() => toggleJoker(m.id)}
+                  />
+                ))}
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       <div className="savebar">
@@ -154,8 +168,9 @@ function MatchesTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
   );
 }
 
-function ScoreRow({ match, value, onChange, isJoker, onToggleJoker }: {
+function ScoreRow({ match, group, value, onChange, isJoker, onToggleJoker }: {
   match: MatchDTO;
+  group?: string | null;
   value?: { home: string; away: string };
   onChange: (side: "home" | "away", v: string) => void;
   isJoker: boolean;
@@ -165,6 +180,7 @@ function ScoreRow({ match, value, onChange, isJoker, onToggleJoker }: {
   const away = sideOf(match, "away");
   return (
     <div className={`prow${isJoker ? " is-joker" : ""}`}>
+      {group && <span className="rgrp" title={`Group ${group}`}>{group}</span>}
       <div className="pwhen">{formatKickoff(match.kickoff)}</div>
       <div className="pteam r">
         <span className={`nm${home.faded ? " faded" : ""}`}>{home.name}</span>
@@ -190,17 +206,25 @@ function ScoreRow({ match, value, onChange, isJoker, onToggleJoker }: {
   );
 }
 
-type Section = { key: string; title: string; group: string | null; matches: MatchDTO[] };
-// Only group-stage matches get a scoreline here — the knockout phase is predicted
-// in the Bracket tab.
-function groupMatches(matches: MatchDTO[]): Section[] {
-  const groups = [...new Set(matches.filter((m) => m.stage === "GROUP").map((m) => m.group))].filter(Boolean).sort() as string[];
-  return groups.map((g) => ({
-    key: `G${g}`,
-    title: `Group ${g}`,
-    group: g,
-    matches: matches.filter((m) => m.stage === "GROUP" && m.group === g),
-  }));
+type Section = { key: string; md: number; matches: MatchDTO[] };
+// Group stage organized BY MATCHDAY — each matchday is one joker round, so the
+// games you can joker against each other sit together. Within a matchday they're
+// ordered by group. (Knockouts are predicted in the Bracket tab.)
+function matchdaySections(matches: MatchDTO[]): Section[] {
+  const group = matches.filter((m) => m.stage === "GROUP");
+  return [1, 2, 3]
+    .map((md) => ({
+      key: `MD${md}`,
+      md,
+      matches: group
+        .filter((m) => m.matchday === md)
+        .sort(
+          (a, b) =>
+            (a.group ?? "").localeCompare(b.group ?? "") ||
+            new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
+        ),
+    }))
+    .filter((s) => s.matches.length > 0);
 }
 
 // ---- Bracket -------------------------------------------------------------
