@@ -1,6 +1,6 @@
 import { ok, bad, serverError } from "@/lib/http";
 import { buildDigest, renderDigestBlocks, saveDigestSnapshot } from "@/lib/digest";
-import { generateCommentary } from "@/lib/commentary";
+import { generateCommentary, probeOpenAI } from "@/lib/commentary";
 import { postToSlack, slackConfigured } from "@/lib/slack";
 import { recomputeAll } from "@/lib/scoring";
 
@@ -10,9 +10,10 @@ export const dynamic = "force-dynamic";
 // REFRESH_SECRET (the same secret the live-refresh cron uses). Like /api/refresh
 // it's "smart": on a quiet day (no results since the last digest, no games today)
 // it posts nothing.
-//   ?dry=1    render and return the blocks as JSON — don't post, don't touch the
-//             movement baseline. For previewing.
-//   ?force=1  post even on a quiet day.
+//   ?dry=1       render and return the blocks as JSON — don't post, don't touch
+//                the movement baseline. For previewing.
+//   ?force=1     post even on a quiet day.
+//   ?selftest=1  ping the OpenAI commentary backend and report; no post.
 async function handle(req: Request) {
   const url = new URL(req.url);
   const secret = url.searchParams.get("secret");
@@ -20,6 +21,12 @@ async function handle(req: Request) {
     return bad("Unauthorized", 401);
   }
   try {
+    // Health check: confirm the OpenAI commentary backend authenticates, without
+    // posting or needing match data.
+    if (url.searchParams.get("selftest") === "1") {
+      return ok({ selftest: true, slackConfigured: slackConfigured(), openai: await probeOpenAI() });
+    }
+
     const dry = url.searchParams.get("dry") === "1";
     const force = url.searchParams.get("force") === "1";
 

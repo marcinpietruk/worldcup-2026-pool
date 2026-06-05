@@ -18,6 +18,10 @@ on:
         description: "Post even with no new results / no games today (for testing)"
         type: boolean
         default: false
+      selftest:
+        description: "Ping the OpenAI commentary backend and report (no post)"
+        type: boolean
+        default: false
 
 concurrency:
   group: daily-digest
@@ -38,6 +42,7 @@ jobs:
           fi
           URL="$APP_URL/api/slack/digest?secret=$REFRESH_SECRET"
           if [ "${{ inputs.force }}" = "true" ]; then URL="$URL&force=1"; fi
+          if [ "${{ inputs.selftest }}" = "true" ]; then URL="$URL&selftest=1"; fi
           code=$(curl -s -o /tmp/out -w "%{http_code}" "$URL")
           echo "HTTP $code"; cat /tmp/out; echo
           test "$code" = "200"

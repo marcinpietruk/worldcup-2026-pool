@@ -62,3 +62,22 @@ export async function generateCommentary(d: DigestData): Promise<string | null> 
     return null; // never let a commentary hiccup block the digest
   }
 }
+
+// Lightweight connectivity check — confirms the key/endpoint/model authenticate
+// without needing live match data. Used by the route's ?selftest=1. No side effects.
+export async function probeOpenAI(): Promise<{ ok: boolean; model: string; sample?: string; error?: string }> {
+  const model = process.env.OPENAI_MODEL || "gpt-5.4-nano";
+  if (!commentaryConfigured()) return { ok: false, model, error: "OPENAI_API_KEY not set" };
+  try {
+    const client = makeClient();
+    const r = await client.responses.create({
+      model,
+      reasoning: { effort: "low" },
+      input: [{ role: "user", content: "Reply with exactly one word: pong" }],
+      max_output_tokens: 200,
+    });
+    return { ok: true, model, sample: (r.output_text || "").trim().slice(0, 40) };
+  } catch (e) {
+    return { ok: false, model, error: e instanceof Error ? e.message : String(e) };
+  }
+}
