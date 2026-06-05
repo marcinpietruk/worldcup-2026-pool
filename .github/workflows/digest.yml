@@ -10,8 +10,8 @@ name: Daily Slack digest
 
 on:
   schedule:
-    # 07:00 UTC = 09:00 in Amsterdam during the tournament (CEST, UTC+2).
-    - cron: "0 7 * * *"
+    # 08:00 UTC = 10:00 in Amsterdam during the tournament (CEST, UTC+2).
+    - cron: "0 8 * * *"
   workflow_dispatch: {} # allow manual runs from the Actions tab
 
 concurrency:
