@@ -12,7 +12,12 @@ on:
   schedule:
     # 08:00 UTC = 10:00 in Amsterdam during the tournament (CEST, UTC+2).
     - cron: "0 8 * * *"
-  workflow_dispatch: {} # allow manual runs from the Actions tab
+  workflow_dispatch: # manual runs from the Actions tab
+    inputs:
+      force:
+        description: "Post even with no new results / no games today (for testing)"
+        type: boolean
+        default: false
 
 concurrency:
   group: daily-digest
@@ -31,6 +36,8 @@ jobs:
             echo "APP_URL / REFRESH_SECRET secrets not set — skipping."
             exit 0
           fi
-          code=$(curl -s -o /tmp/out -w "%{http_code}" "$APP_URL/api/slack/digest?secret=$REFRESH_SECRET")
+          URL="$APP_URL/api/slack/digest?secret=$REFRESH_SECRET"
+          if [ "${{ inputs.force }}" = "true" ]; then URL="$URL&force=1"; fi
+          code=$(curl -s -o /tmp/out -w "%{http_code}" "$URL")
           echo "HTTP $code"; cat /tmp/out; echo
           test "$code" = "200"
