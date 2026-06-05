@@ -1,0 +1,36 @@
+name: Daily Slack digest
+
+# Posts a morning digest (standings + movement, yesterday's results, today's
+# fixtures, fun awards) to Slack once a day. The endpoint is "smart": on a day
+# with no new results and no games it posts nothing.
+#
+# Requires the repository secrets APP_URL and REFRESH_SECRET (the same two the
+# live-refresh workflow uses), plus SLACK_BOT_TOKEN and SLACK_CHANNEL_ID set in
+# the Vercel project's environment variables.
+
+on:
+  schedule:
+    # 07:00 UTC = 09:00 in Amsterdam during the tournament (CEST, UTC+2).
+    - cron: "0 7 * * *"
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+concurrency:
+  group: daily-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post daily digest
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          REFRESH_SECRET: ${{ secrets.REFRESH_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$REFRESH_SECRET" ]; then
+            echo "APP_URL / REFRESH_SECRET secrets not set — skipping."
+            exit 0
+          fi
+          code=$(curl -s -o /tmp/out -w "%{http_code}" "$APP_URL/api/slack/digest?secret=$REFRESH_SECRET")
+          echo "HTTP $code"; cat /tmp/out; echo
+          test "$code" = "200"
