@@ -1,5 +1,6 @@
 import { ok, bad, serverError } from "@/lib/http";
 import { buildDigest, renderDigestBlocks, saveDigestSnapshot } from "@/lib/digest";
+import { generateCommentary } from "@/lib/commentary";
 import { postToSlack, slackConfigured } from "@/lib/slack";
 import { recomputeAll } from "@/lib/scoring";
 
@@ -26,11 +27,14 @@ async function handle(req: Request) {
     // at office scale and idempotent.
     await recomputeAll();
     const digest = await buildDigest(new Date());
-    const { text, blocks } = renderDigestBlocks(digest);
+    // Football-commentator intro (OpenAI). Returns null if unconfigured, on a day
+    // with no results, or on error — so the digest still renders without it.
+    const commentary = await generateCommentary(digest);
+    const { text, blocks } = renderDigestBlocks(digest, commentary);
 
     // Preview: always render, never post, never advance the movement baseline.
     if (dry) {
-      return ok({ dry: true, hasContent: digest.hasContent, text, blocks });
+      return ok({ dry: true, hasContent: digest.hasContent, commentary, text, blocks });
     }
     // Quiet day: nothing new and no games → stay silent (unless forced).
     if (!digest.hasContent && !force) {

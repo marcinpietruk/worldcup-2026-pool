@@ -31,7 +31,7 @@ export type StandingRow = {
   streak: number;
 };
 
-export type Award = { name: string; pred: string; line: string; pts: number };
+export type Award = { name: string; pred: string; line: string; plain: string; pts: number };
 
 export type DigestData = {
   now: Date;
@@ -82,6 +82,15 @@ function matchLine(m: MatchT): string {
   const h = side(m.homeTeam, m.homeLabel);
   const a = side(m.awayTeam, m.awayLabel);
   return `${h.flag} ${h.name} ${score(m)} ${a.flag} ${a.name}`.replace(/\s+/g, " ").trim();
+}
+
+// Plain text for the commentary model: "England 2-1 USA" — no flag emoji (clean
+// material for the model, and avoids it parroting emoji into prose).
+function plainMatch(m: MatchT): string {
+  const h = side(m.homeTeam, m.homeLabel).name;
+  const a = side(m.awayTeam, m.awayLabel).name;
+  const sc = m.homeScore != null && m.awayScore != null ? `${m.homeScore}-${m.awayScore}` : "vs";
+  return `${h} ${sc} ${a}`;
 }
 
 const STAGE_NAME: Record<string, string> = {
@@ -157,6 +166,7 @@ export async function buildDigest(now: Date): Promise<DigestData> {
       name: x.p.player.name,
       pred: `${x.p.homeScore}–${x.p.awayScore}`,
       line: matchLine(x.p.match),
+      plain: plainMatch(x.p.match),
       pts: x.p.points,
     };
 
@@ -209,6 +219,22 @@ export async function saveDigestSnapshot(d: DigestData): Promise<void> {
   });
 }
 
+// Compact, plain-text fact sheet handed to the commentary model. Everything the
+// model is allowed to mention lives here — it must not invent anything else.
+// `change` on a standing = places moved since the last digest (+climb / -drop).
+export function digestFacts(d: DigestData) {
+  return {
+    date: amsPretty(d.now),
+    results: d.recap.map(plainMatch),
+    standings: d.standings.map((s) => ({ rank: s.rank + 1, player: s.name, points: s.total, change: s.move })),
+    pointsWonSinceLastDigest: d.gainers.map((g) => ({ player: g.name, points: g.pts, exactScorelines: g.exact })),
+    predictionOfTheDay: d.best && { player: d.best.name, predicted: d.best.pred, actual: d.best.plain, points: d.best.pts },
+    flopOfTheDay: d.flop && { player: d.flop.name, predicted: d.flop.pred, actual: d.flop.plain, points: d.flop.pts },
+    hottestStreak: d.hottest,
+    todaysFixtures: d.fixtures.map((m) => `${plainMatch(m)} (${amsTime(m.kickoff)})`),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Render → Slack Block Kit
 // ---------------------------------------------------------------------------
@@ -237,10 +263,19 @@ function section(text: string): SlackBlock {
 }
 const divider: SlackBlock = { type: "divider" };
 
-export function renderDigestBlocks(d: DigestData): { text: string; blocks: SlackBlock[] } {
+export function renderDigestBlocks(
+  d: DigestData,
+  commentary?: string | null,
+): { text: string; blocks: SlackBlock[] } {
   const blocks: SlackBlock[] = [
     { type: "header", text: { type: "plain_text", text: `⚽ World Cup Pool — ${amsPretty(d.now)}`, emoji: true } },
   ];
+
+  // Optional AI commentary — a pull-quote from "the gantry" under the header.
+  if (commentary) {
+    const quoted = commentary.trim().split("\n").map((l) => `> ${l}`).join("\n");
+    blocks.push(section(`🎙️ *Word from the gantry*\n${quoted}`));
+  }
 
   // 1) Standings (+ biggest movers)
   let standingsText = `*🏆 Standings*\n${standingsTable(d.standings)}`;
