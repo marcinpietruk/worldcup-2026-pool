@@ -17,7 +17,11 @@ import type { SlackBlock } from "./slack";
 const TZ = "Europe/Amsterdam"; // office timezone — drives "today" and clock times
 
 // Snapshot stored in Settings.digestSnapshot between runs.
-type Snapshot = { takenAt: string; ranks: Record<string, { rank: number; total: number }> };
+type Snapshot = {
+  takenAt: string;
+  ranks: Record<string, { rank: number; total: number }>;
+  reportedIds?: string[]; // ids of matches already shown in a recap, so each result reports exactly once
+};
 
 type MatchT = Match & { homeTeam: Team | null; awayTeam: Team | null };
 
@@ -104,8 +108,9 @@ export async function buildDigest(now: Date): Promise<DigestData> {
   const settings = await getSettings();
   const prev = (settings.digestSnapshot as Snapshot | null) ?? null;
 
-  // "Since the last digest": matches that kicked off after the previous post and
-  // have now finished. Falls back to a ~26h window on the very first run.
+  // First-run fallback window: with no prior snapshot, report finished matches
+  // from the last ~26h so the first digest isn't empty (without dumping the whole
+  // tournament's history).
   const windowStart = prev?.takenAt
     ? new Date(prev.takenAt)
     : new Date(now.getTime() - 26 * 60 * 60 * 1000);
@@ -115,10 +120,16 @@ export async function buildDigest(now: Date): Promise<DigestData> {
     prisma.match.findMany({ include: { homeTeam: true, awayTeam: true }, orderBy: { kickoff: "asc" } }),
   ]);
 
-  const recap = matches.filter(
-    (m) => m.status === "FINISHED" && m.homeScore != null &&
-      m.kickoff >= windowStart && m.kickoff <= now,
-  );
+  // "Since the last digest" = matches that have FINISHED but weren't reported in a
+  // previous digest, tracked by id rather than kickoff time. Keying on kickoff
+  // dropped any game still in play when the digest ran (e.g. a 06:00 kickoff vs
+  // the 06:27 post): it finished after that window closed, yet its kickoff fell
+  // before the next window opened, so it was never reported at all.
+  const finishedNow = matches.filter((m) => m.status === "FINISHED" && m.homeScore != null);
+  const reported = prev?.reportedIds ? new Set(prev.reportedIds) : null;
+  const recap = reported
+    ? finishedNow.filter((m) => !reported.has(m.id))
+    : finishedNow.filter((m) => m.kickoff >= windowStart && m.kickoff <= now);
   // Fixtures kicking off before the next daily digest (~24h out) — not just those
   // sharing today's Amsterdam calendar date. The tournament is in North America,
   // so evening/overnight games fall on the *next* Amsterdam day; a date-based
@@ -193,6 +204,7 @@ export async function buildDigest(now: Date): Promise<DigestData> {
   const snapshot: Snapshot = {
     takenAt: now.toISOString(),
     ranks: Object.fromEntries(lb.map((r, i) => [r.playerId, { rank: i, total: r.total }])),
+    reportedIds: finishedNow.map((m) => m.id), // baseline: everything finished as of this post
   };
 
   return {
