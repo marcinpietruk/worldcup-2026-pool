@@ -73,6 +73,15 @@ model Match {
   // Null when the match isn't LIVE.
   statusDetail String?
 
+  // Extra context from the live provider (ESPN). All nullable.
+  events     Json? // goal/card timeline: [{ min, type: goal|yellow|red, team, player }]
+  venue      String? // "Estadio Banorte · Mexico City"
+  attendance Int?
+  homeForm   String? // last-5 form, e.g. "WWWDD"
+  awayForm   String?
+  homeRecord String? // tournament W-D-L, e.g. "1-0-0"
+  awayRecord String?
+
   // Winning team id for knockout matches (handles penalty shootouts, where the
   // fullTime score is a draw). Null for draws / unplayed.
   winnerTeamId String?

@@ -3,7 +3,7 @@ import { getLiveProvider } from "./providers";
 import { recomputeAll } from "./scoring";
 import { log } from "./log";
 import { flagFor, fifaCodeFor } from "./teams";
-import type { NormalizedFixture } from "./providers/fixtures";
+import type { MatchEvent, NormalizedFixture } from "./providers/fixtures";
 import type { Match, Stage } from "@prisma/client";
 
 export type SyncResult = {
@@ -27,6 +27,22 @@ function groupKey(group: string | null, a: string | null, b: string | null): str
 function pairKey(a: string | null, b: string | null): string | null {
   if (!a || !b) return null;
   return [a, b].sort().join("~");
+}
+
+// Extra, side-oriented context to patch onto a match. `swap` flips home/away for
+// the per-side fields (form/record) when the group matcher reversed the sides;
+// events are keyed by team name, so they don't need flipping.
+function extraPatch(f: NormalizedFixture, swap: boolean) {
+  return {
+    statusDetail: f.statusDetail ?? null,
+    events: f.events ?? [],
+    venue: f.venue ?? null,
+    attendance: f.attendance ?? null,
+    homeForm: (swap ? f.awayForm : f.homeForm) ?? null,
+    awayForm: (swap ? f.homeForm : f.awayForm) ?? null,
+    homeRecord: (swap ? f.awayRecord : f.homeRecord) ?? null,
+    awayRecord: (swap ? f.homeRecord : f.awayRecord) ?? null,
+  };
 }
 
 async function getOrCreateTeamByName(
@@ -127,7 +143,7 @@ export async function syncLiveResults(): Promise<SyncResult> {
         awayTeamId: target.awayTeamId,
         winnerTeamId: f.winner === "HOME" ? provHomeId : f.winner === "AWAY" ? provAwayId : null,
         kickoff: f.kickoff,
-        statusDetail: f.statusDetail ?? null,
+        ...extraPatch(f, swapped),
       })
     )
       updated++;
@@ -161,7 +177,7 @@ export async function syncLiveResults(): Promise<SyncResult> {
           awayTeamId,
           winnerTeamId: f.winner === "HOME" ? homeTeamId : f.winner === "AWAY" ? awayTeamId : null,
           kickoff: f.kickoff,
-          statusDetail: f.statusDetail ?? null,
+          ...extraPatch(f, false),
         })
       )
         updated++;
@@ -189,6 +205,13 @@ type MatchPatch = {
   winnerTeamId: string | null;
   kickoff: Date;
   statusDetail: string | null;
+  events: MatchEvent[];
+  venue: string | null;
+  attendance: number | null;
+  homeForm: string | null;
+  awayForm: string | null;
+  homeRecord: string | null;
+  awayRecord: string | null;
 };
 
 // Write a patch onto a match, only if something actually changed (so unchanged
@@ -202,6 +225,13 @@ async function writeMatch(match: Match, patch: MatchPatch): Promise<boolean> {
     patch.awayTeamId !== match.awayTeamId ||
     patch.winnerTeamId !== match.winnerTeamId ||
     patch.statusDetail !== match.statusDetail ||
+    patch.venue !== match.venue ||
+    patch.attendance !== match.attendance ||
+    patch.homeForm !== match.homeForm ||
+    patch.awayForm !== match.awayForm ||
+    patch.homeRecord !== match.homeRecord ||
+    patch.awayRecord !== match.awayRecord ||
+    JSON.stringify(patch.events) !== JSON.stringify(match.events ?? []) ||
     patch.kickoff.getTime() !== match.kickoff.getTime();
   if (!changed) return false;
   await prisma.match.update({ where: { id: match.id }, data: patch });

@@ -19,6 +19,23 @@ export type NormalizedFixture = {
   status: MatchStatus;
   // Live clock for in-play matches ("27'", "HT"), when the provider supplies it.
   statusDetail?: string | null;
+  // Extra context, when the provider supplies it. Events are keyed by team name
+  // (not home/away) so they survive the orientation swap in the group matcher.
+  events?: MatchEvent[];
+  venue?: string | null;
+  attendance?: number | null;
+  homeForm?: string | null;
+  awayForm?: string | null;
+  homeRecord?: string | null;
+  awayRecord?: string | null;
+};
+
+// A goal or card within a match.
+export type MatchEvent = {
+  min: string; // "9'", "45'+2"
+  type: "goal" | "yellow" | "red";
+  team: string | null; // canonical team name
+  player: string | null;
 };
 
 // Map a round/stage string from any source to our Stage enum.

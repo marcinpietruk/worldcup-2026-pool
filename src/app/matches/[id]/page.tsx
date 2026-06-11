@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { getPlayer, getJSON, postJSON, type MatchDTO } from "@/lib/client";
+import { getPlayer, getJSON, postJSON, type MatchDTO, type MatchEventDTO } from "@/lib/client";
 import { Card, Button, Spinner, Message } from "@/components/ui";
 import { Flag } from "@/components/Flag";
 import { STAGE_LABEL, formatKickoff, sideOf } from "@/lib/format";
@@ -11,6 +11,13 @@ import { STAGE_LABEL, formatKickoff, sideOf } from "@/lib/format";
 type Pick = { playerId: string; player: string; homeScore: number; awayScore: number; points: number };
 type CommentDTO = { id: string; playerId: string; player: string; body: string; createdAt: string };
 type Detail = { match: MatchDTO; revealed: boolean; picks: Pick[] | null; predictionCount: number; comments: CommentDTO[] };
+
+const EVENT_ICON: Record<string, string> = { goal: "⚽", yellow: "🟨", red: "🟥" };
+const minNum = (min: string) => { const m = min.match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
+const sortedEvents = (evs: MatchEventDTO[]) => [...evs].sort((a, b) => minNum(a.min) - minNum(b.min));
+// "W W W D D  ·  1-0-0" — recent form spaced out, plus tournament record.
+const formLine = (form: string | null, record: string | null) =>
+  [form ? form.split("").join(" ") : null, record].filter(Boolean).join("  ·  ");
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -55,7 +62,35 @@ export default function MatchDetailPage() {
             <span className={`nm${away.faded ? " faded" : ""}`} style={{ fontSize: 17 }}>{away.name}</span>
           </div>
         </div>
+        {(m.homeForm || m.awayForm || m.homeRecord || m.awayRecord) && (
+          <div className="mrow" style={{ paddingTop: 0, fontSize: 12 }}>
+            <span className="muted r">{formLine(m.homeForm, m.homeRecord)}</span>
+            <span className="muted" style={{ fontSize: 10.5, whiteSpace: "nowrap" }}>form · W-D-L</span>
+            <span className="muted">{formLine(m.awayForm, m.awayRecord)}</span>
+          </div>
+        )}
+        {(m.venue || m.attendance) && (
+          <div className="muted" style={{ textAlign: "center", fontSize: 12, marginTop: 4 }}>
+            {[m.venue, m.attendance ? `👥 ${m.attendance.toLocaleString()}` : null].filter(Boolean).join("  ·  ")}
+          </div>
+        )}
       </Card>
+
+      {m.events && m.events.length > 0 && (
+        <Card className="lb">
+          <div className="card__head">Match events</div>
+          <div className="card__body stack-sm">
+            {sortedEvents(m.events).map((ev, i) => (
+              <div key={i} className="row" style={{ gap: 8, fontSize: 14, alignItems: "baseline" }}>
+                <span className="num" style={{ width: 42, textAlign: "right", color: "var(--muted)" }}>{ev.min}</span>
+                <span>{EVENT_ICON[ev.type] ?? "•"}</span>
+                <span>{ev.player ?? "—"}</span>
+                {ev.team && <span className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>{ev.team}</span>}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {!data.revealed ? (
         <Message kind="info">🔒 Everyone&apos;s predictions are revealed after kickoff. {data.predictionCount} submitted so far.</Message>

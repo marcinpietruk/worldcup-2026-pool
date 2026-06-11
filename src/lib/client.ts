@@ -4,6 +4,8 @@
 
 export type TeamDTO = { id: string; name: string; flag: string | null; code: string | null; iso2: string | null; group?: string | null };
 
+export type MatchEventDTO = { min: string; type: string; team: string | null; player: string | null };
+
 export type MatchDTO = {
   id: string;
   number: number;
@@ -21,6 +23,13 @@ export type MatchDTO = {
   homeScore: number | null;
   awayScore: number | null;
   statusDetail: string | null; // live clock ("27'", "HT") for in-play matches
+  events: MatchEventDTO[] | null; // goal/card timeline
+  venue: string | null;
+  attendance: number | null;
+  homeForm: string | null; // last-5 form, "WWWDD"
+  awayForm: string | null;
+  homeRecord: string | null; // tournament W-D-L
+  awayRecord: string | null;
   locked: boolean;
 };
 

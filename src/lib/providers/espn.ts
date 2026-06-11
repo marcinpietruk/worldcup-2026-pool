@@ -1,5 +1,5 @@
 import { canonicalTeamName, isCanonicalTeam } from "../teams";
-import { mapStage, type NormalizedFixture } from "./fixtures";
+import { mapStage, type MatchEvent, type NormalizedFixture } from "./fixtures";
 import type { MatchStatus } from "@prisma/client";
 
 // Live results provider backed by ESPN's public scoreboard API. No API key
@@ -22,7 +22,15 @@ type EspnCompetitor = {
   homeAway?: "home" | "away";
   score?: string | null;
   winner?: boolean;
-  team?: { displayName?: string | null };
+  form?: string | null;
+  records?: Array<{ type?: string; summary?: string }>;
+  team?: { id?: string; displayName?: string | null };
+};
+type EspnDetail = {
+  type?: { text?: string };
+  clock?: { displayValue?: string };
+  team?: { id?: string };
+  athletesInvolved?: Array<{ displayName?: string }>;
 };
 type EspnEvent = {
   id: string;
@@ -31,6 +39,9 @@ type EspnEvent = {
   competitions?: Array<{
     competitors?: EspnCompetitor[];
     status?: { type?: { state?: string; detail?: string; shortDetail?: string } };
+    details?: EspnDetail[];
+    venue?: { fullName?: string; address?: { city?: string } };
+    attendance?: number;
   }>;
 };
 
@@ -45,6 +56,14 @@ function teamOrNull(displayName: string | null | undefined): string | null {
   if (!displayName) return null;
   const name = canonicalTeamName(displayName);
   return isCanonicalTeam(name) ? name : null;
+}
+
+function eventType(text: string | undefined): MatchEvent["type"] | null {
+  const t = (text ?? "").toLowerCase();
+  if (t.includes("goal")) return "goal";
+  if (t.includes("yellow")) return "yellow";
+  if (t.includes("red")) return "red";
+  return null; // substitutions, VAR, etc. — not shown
 }
 
 export function isConfigured(): boolean {
@@ -72,6 +91,29 @@ export function parseEspnEvent(e: EspnEvent): NormalizedFixture {
   // Only trust a score once the match is under way; a "pre" event reports 0.
   const toScore = (c?: EspnCompetitor) =>
     started && c?.score != null && c.score !== "" ? Number(c.score) : null;
+
+  // Goal/card timeline, keyed by team name so it survives a home/away swap.
+  const teamById = new Map<string, string | null>();
+  for (const c of cs) if (c.team?.id) teamById.set(c.team.id, teamOrNull(c.team?.displayName));
+  const events: MatchEvent[] = (comp?.details ?? [])
+    .map((d): MatchEvent | null => {
+      const kind = eventType(d.type?.text);
+      if (!kind) return null;
+      return {
+        min: d.clock?.displayValue ?? "",
+        type: kind,
+        team: d.team?.id ? teamById.get(d.team.id) ?? null : null,
+        player: d.athletesInvolved?.[0]?.displayName ?? null,
+      };
+    })
+    .filter((x): x is MatchEvent => x !== null);
+
+  const recordOf = (c?: EspnCompetitor) =>
+    c?.records?.find((r) => r.type === "total")?.summary ?? c?.records?.[0]?.summary ?? null;
+  const venue = comp?.venue?.fullName
+    ? [comp.venue.fullName, comp.venue.address?.city].filter(Boolean).join(" · ")
+    : null;
+
   return {
     externalId: `espn-${e.id}`,
     stage,
@@ -89,5 +131,12 @@ export function parseEspnEvent(e: EspnEvent): NormalizedFixture {
     status,
     // Live clock only while in play ("27'", "HT"); cleared otherwise.
     statusDetail: status === "LIVE" ? type?.shortDetail ?? type?.detail ?? null : null,
+    events,
+    venue,
+    attendance: comp?.attendance && comp.attendance > 0 ? comp.attendance : null,
+    homeForm: home?.form ?? null,
+    awayForm: away?.form ?? null,
+    homeRecord: recordOf(home),
+    awayRecord: recordOf(away),
   };
 }

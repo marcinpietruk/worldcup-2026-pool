@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { isMatchLocked } from "./scoring";
 import { iso2For } from "./teams";
+import type { MatchEvent } from "./providers/fixtures";
 import type { Match, Team } from "@prisma/client";
 
 export type TeamDTO = { id: string; name: string; flag: string | null; code: string | null; iso2: string | null; group?: string | null };
@@ -24,6 +25,13 @@ export type MatchDTO = {
   homeScore: number | null;
   awayScore: number | null;
   statusDetail: string | null; // live clock ("27'", "HT") for in-play matches
+  events: MatchEvent[] | null; // goal/card timeline
+  venue: string | null;
+  attendance: number | null;
+  homeForm: string | null; // last-5 form, "WWWDD"
+  awayForm: string | null;
+  homeRecord: string | null; // tournament W-D-L
+  awayRecord: string | null;
   locked: boolean;
 };
 
@@ -56,6 +64,13 @@ export function serializeMatch(m: MatchWithTeams, now = new Date()): MatchDTO {
     homeScore: m.homeScore,
     awayScore: m.awayScore,
     statusDetail: m.statusDetail,
+    events: (m.events as unknown as MatchEvent[] | null) ?? null,
+    venue: m.venue,
+    attendance: m.attendance,
+    homeForm: m.homeForm,
+    awayForm: m.awayForm,
+    homeRecord: m.homeRecord,
+    awayRecord: m.awayRecord,
     locked: isMatchLocked(m, now),
   };
 }
