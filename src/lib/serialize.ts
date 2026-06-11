@@ -28,8 +28,6 @@ export type MatchDTO = {
   events: MatchEvent[] | null; // goal/card timeline
   venue: string | null;
   attendance: number | null;
-  homeForm: string | null; // last-5 form, "WWWDD"
-  awayForm: string | null;
   homeRecord: string | null; // tournament W-D-L
   awayRecord: string | null;
   locked: boolean;
@@ -67,8 +65,6 @@ export function serializeMatch(m: MatchWithTeams, now = new Date()): MatchDTO {
     events: (m.events as unknown as MatchEvent[] | null) ?? null,
     venue: m.venue,
     attendance: m.attendance,
-    homeForm: m.homeForm,
-    awayForm: m.awayForm,
     homeRecord: m.homeRecord,
     awayRecord: m.awayRecord,
     locked: isMatchLocked(m, now),

@@ -30,16 +30,14 @@ function pairKey(a: string | null, b: string | null): string | null {
 }
 
 // Extra, side-oriented context to patch onto a match. `swap` flips home/away for
-// the per-side fields (form/record) when the group matcher reversed the sides;
-// events are keyed by team name, so they don't need flipping.
+// the per-side record when the group matcher reversed the sides; events are
+// keyed by team name, so they don't need flipping.
 function extraPatch(f: NormalizedFixture, swap: boolean) {
   return {
     statusDetail: f.statusDetail ?? null,
     events: f.events ?? [],
     venue: f.venue ?? null,
     attendance: f.attendance ?? null,
-    homeForm: (swap ? f.awayForm : f.homeForm) ?? null,
-    awayForm: (swap ? f.homeForm : f.awayForm) ?? null,
     homeRecord: (swap ? f.awayRecord : f.homeRecord) ?? null,
     awayRecord: (swap ? f.homeRecord : f.awayRecord) ?? null,
   };
@@ -208,8 +206,6 @@ type MatchPatch = {
   events: MatchEvent[];
   venue: string | null;
   attendance: number | null;
-  homeForm: string | null;
-  awayForm: string | null;
   homeRecord: string | null;
   awayRecord: string | null;
 };
@@ -227,8 +223,6 @@ async function writeMatch(match: Match, patch: MatchPatch): Promise<boolean> {
     patch.statusDetail !== match.statusDetail ||
     patch.venue !== match.venue ||
     patch.attendance !== match.attendance ||
-    patch.homeForm !== match.homeForm ||
-    patch.awayForm !== match.awayForm ||
     patch.homeRecord !== match.homeRecord ||
     patch.awayRecord !== match.awayRecord ||
     JSON.stringify(patch.events) !== JSON.stringify(match.events ?? []) ||

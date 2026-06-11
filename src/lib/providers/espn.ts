@@ -22,7 +22,6 @@ type EspnCompetitor = {
   homeAway?: "home" | "away";
   score?: string | null;
   winner?: boolean;
-  form?: string | null;
   records?: Array<{ type?: string; summary?: string }>;
   team?: { id?: string; displayName?: string | null };
 };
@@ -134,8 +133,6 @@ export function parseEspnEvent(e: EspnEvent): NormalizedFixture {
     events,
     venue,
     attendance: comp?.attendance && comp.attendance > 0 ? comp.attendance : null,
-    homeForm: home?.form ?? null,
-    awayForm: away?.form ?? null,
     homeRecord: recordOf(home),
     awayRecord: recordOf(away),
   };

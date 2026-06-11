@@ -24,8 +24,6 @@ export type NormalizedFixture = {
   events?: MatchEvent[];
   venue?: string | null;
   attendance?: number | null;
-  homeForm?: string | null;
-  awayForm?: string | null;
   homeRecord?: string | null;
   awayRecord?: string | null;
 };

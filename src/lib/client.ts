@@ -26,8 +26,6 @@ export type MatchDTO = {
   events: MatchEventDTO[] | null; // goal/card timeline
   venue: string | null;
   attendance: number | null;
-  homeForm: string | null; // last-5 form, "WWWDD"
-  awayForm: string | null;
   homeRecord: string | null; // tournament W-D-L
   awayRecord: string | null;
   locked: boolean;

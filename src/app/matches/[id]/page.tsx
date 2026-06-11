@@ -15,9 +15,6 @@ type Detail = { match: MatchDTO; revealed: boolean; picks: Pick[] | null; predic
 const EVENT_ICON: Record<string, string> = { goal: "⚽", yellow: "🟨", red: "🟥" };
 const minNum = (min: string) => { const m = min.match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
 const sortedEvents = (evs: MatchEventDTO[]) => [...evs].sort((a, b) => minNum(a.min) - minNum(b.min));
-// "W W W D D  ·  1-0-0" — recent form spaced out, plus tournament record.
-const formLine = (form: string | null, record: string | null) =>
-  [form ? form.split("").join(" ") : null, record].filter(Boolean).join("  ·  ");
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -62,11 +59,11 @@ export default function MatchDetailPage() {
             <span className={`nm${away.faded ? " faded" : ""}`} style={{ fontSize: 17 }}>{away.name}</span>
           </div>
         </div>
-        {(m.homeForm || m.awayForm || m.homeRecord || m.awayRecord) && (
+        {(m.homeRecord || m.awayRecord) && (
           <div className="mrow" style={{ paddingTop: 0, fontSize: 12 }}>
-            <span className="muted" style={{ textAlign: "right" }}>{formLine(m.homeForm, m.homeRecord)}</span>
-            <span className="muted" style={{ fontSize: 10.5, whiteSpace: "nowrap" }}>form · W-D-L</span>
-            <span className="muted" style={{ textAlign: "left" }}>{formLine(m.awayForm, m.awayRecord)}</span>
+            <span className="muted" style={{ textAlign: "right" }}>{m.homeRecord}</span>
+            <span className="muted" style={{ fontSize: 10.5, whiteSpace: "nowrap" }}>record · W-D-L</span>
+            <span className="muted" style={{ textAlign: "left" }}>{m.awayRecord}</span>
           </div>
         )}
         {(m.venue || m.attendance) && (

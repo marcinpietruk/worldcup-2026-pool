@@ -151,7 +151,7 @@ test("computeStandings ranks a group by points then GD", () => {
       id: `${h}${a}`, number: 0, stage: "GROUP", group: "A", matchday: 1, kickoff: "2026-06-11T19:00:00Z",
       status: "FINISHED", sourceHomeNum: null, sourceAwayNum: null, home: team(h), away: team(a),
       homeLabel: null, awayLabel: null, homeScore: hs, awayScore: as, statusDetail: null,
-      events: null, venue: null, attendance: null, homeForm: null, awayForm: null, homeRecord: null, awayRecord: null,
+      events: null, venue: null, attendance: null, homeRecord: null, awayRecord: null,
       locked: true,
     }) as const;
   const standings = computeStandings([gm("Alpha", "Bravo", 2, 0), gm("Charlie", "Delta", 1, 1)]);

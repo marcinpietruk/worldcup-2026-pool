@@ -77,8 +77,6 @@ model Match {
   events     Json? // goal/card timeline: [{ min, type: goal|yellow|red, team, player }]
   venue      String? // "Estadio Banorte · Mexico City"
   attendance Int?
-  homeForm   String? // last-5 form, e.g. "WWWDD"
-  awayForm   String?
   homeRecord String? // tournament W-D-L, e.g. "1-0-0"
   awayRecord String?
 
