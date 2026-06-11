@@ -127,6 +127,7 @@ export async function syncLiveResults(): Promise<SyncResult> {
         awayTeamId: target.awayTeamId,
         winnerTeamId: f.winner === "HOME" ? provHomeId : f.winner === "AWAY" ? provAwayId : null,
         kickoff: f.kickoff,
+        statusDetail: f.statusDetail ?? null,
       })
     )
       updated++;
@@ -160,6 +161,7 @@ export async function syncLiveResults(): Promise<SyncResult> {
           awayTeamId,
           winnerTeamId: f.winner === "HOME" ? homeTeamId : f.winner === "AWAY" ? awayTeamId : null,
           kickoff: f.kickoff,
+          statusDetail: f.statusDetail ?? null,
         })
       )
         updated++;
@@ -186,6 +188,7 @@ type MatchPatch = {
   awayTeamId: string | null;
   winnerTeamId: string | null;
   kickoff: Date;
+  statusDetail: string | null;
 };
 
 // Write a patch onto a match, only if something actually changed (so unchanged
@@ -198,6 +201,7 @@ async function writeMatch(match: Match, patch: MatchPatch): Promise<boolean> {
     patch.homeTeamId !== match.homeTeamId ||
     patch.awayTeamId !== match.awayTeamId ||
     patch.winnerTeamId !== match.winnerTeamId ||
+    patch.statusDetail !== match.statusDetail ||
     patch.kickoff.getTime() !== match.kickoff.getTime();
   if (!changed) return false;
   await prisma.match.update({ where: { id: match.id }, data: patch });

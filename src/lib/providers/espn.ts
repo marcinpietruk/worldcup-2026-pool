@@ -30,7 +30,7 @@ type EspnEvent = {
   season?: { slug?: string | null };
   competitions?: Array<{
     competitors?: EspnCompetitor[];
-    status?: { type?: { state?: string } };
+    status?: { type?: { state?: string; detail?: string; shortDetail?: string } };
   }>;
 };
 
@@ -66,7 +66,8 @@ export function parseEspnEvent(e: EspnEvent): NormalizedFixture {
   const home = cs.find((c) => c.homeAway === "home");
   const away = cs.find((c) => c.homeAway === "away");
   const stage = mapStage((e.season?.slug ?? "").replace(/-/g, " "));
-  const status = espnStatus(comp?.status?.type?.state);
+  const type = comp?.status?.type;
+  const status = espnStatus(type?.state);
   const started = status !== "SCHEDULED";
   // Only trust a score once the match is under way; a "pre" event reports 0.
   const toScore = (c?: EspnCompetitor) =>
@@ -86,5 +87,7 @@ export function parseEspnEvent(e: EspnEvent): NormalizedFixture {
     // ESPN flags the advancing side as the winner (covers penalty shootouts).
     winner: home?.winner ? "HOME" : away?.winner ? "AWAY" : null,
     status,
+    // Live clock only while in play ("27'", "HT"); cleared otherwise.
+    statusDetail: status === "LIVE" ? type?.shortDetail ?? type?.detail ?? null : null,
   };
 }

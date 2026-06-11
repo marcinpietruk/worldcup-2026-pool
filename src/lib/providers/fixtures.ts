@@ -17,6 +17,8 @@ export type NormalizedFixture = {
   // Winner side for knockout matches (covers penalty shootouts). null = draw/none.
   winner: "HOME" | "AWAY" | null;
   status: MatchStatus;
+  // Live clock for in-play matches ("27'", "HT"), when the provider supplies it.
+  statusDetail?: string | null;
 };
 
 // Map a round/stage string from any source to our Stage enum.

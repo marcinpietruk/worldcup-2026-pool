@@ -38,7 +38,7 @@ export default function MatchDetailPage() {
       <Card className="match">
         <div className="match__top">
           <span className="tag">{STAGE_LABEL[m.stage]}{m.group ? ` · Group ${m.group}` : ""}</span>
-          {m.status === "LIVE" ? <span className="live-flag"><span className="live-dot" /> Live</span> : <span className="tag">{formatKickoff(m.kickoff)}</span>}
+          {m.status === "LIVE" ? <span className="live-flag"><span className="live-dot" /> {m.statusDetail ?? "Live"}</span> : <span className="tag">{formatKickoff(m.kickoff)}</span>}
         </div>
         <div className="mrow" style={{ padding: "10px 0" }}>
           <div className="team r">

@@ -96,7 +96,7 @@ function MatchCard({ match, me, settings }: { match: MatchDTO; me: StateResponse
       <div className="match__top">
         <span className="tag">{STAGE_LABEL[match.stage]}{match.group ? ` · Group ${match.group}` : ""}</span>
         {isLive ? (
-          <span className="live-flag"><span className="live-dot" /> Live</span>
+          <span className="live-flag"><span className="live-dot" /> {match.statusDetail ?? "Live"}</span>
         ) : (
           <span className="tag">{formatKickoff(match.kickoff)}</span>
         )}

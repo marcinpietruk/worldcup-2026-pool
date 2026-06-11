@@ -20,6 +20,7 @@ export type MatchDTO = {
   awayLabel: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  statusDetail: string | null; // live clock ("27'", "HT") for in-play matches
   locked: boolean;
 };
 

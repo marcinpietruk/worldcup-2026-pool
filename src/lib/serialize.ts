@@ -23,6 +23,7 @@ export type MatchDTO = {
   awayLabel: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  statusDetail: string | null; // live clock ("27'", "HT") for in-play matches
   locked: boolean;
 };
 
@@ -54,6 +55,7 @@ export function serializeMatch(m: MatchWithTeams, now = new Date()): MatchDTO {
     awayLabel: m.awayLabel,
     homeScore: m.homeScore,
     awayScore: m.awayScore,
+    statusDetail: m.statusDetail,
     locked: isMatchLocked(m, now),
   };
 }
