@@ -64,9 +64,9 @@ export default function MatchDetailPage() {
         </div>
         {(m.homeForm || m.awayForm || m.homeRecord || m.awayRecord) && (
           <div className="mrow" style={{ paddingTop: 0, fontSize: 12 }}>
-            <span className="muted r">{formLine(m.homeForm, m.homeRecord)}</span>
+            <span className="muted" style={{ textAlign: "right" }}>{formLine(m.homeForm, m.homeRecord)}</span>
             <span className="muted" style={{ fontSize: 10.5, whiteSpace: "nowrap" }}>form · W-D-L</span>
-            <span className="muted">{formLine(m.awayForm, m.awayRecord)}</span>
+            <span className="muted" style={{ textAlign: "left" }}>{formLine(m.awayForm, m.awayRecord)}</span>
           </div>
         )}
         {(m.venue || m.attendance) && (
@@ -79,15 +79,24 @@ export default function MatchDetailPage() {
       {m.events && m.events.length > 0 && (
         <Card className="lb">
           <div className="card__head">Match events</div>
-          <div className="card__body stack-sm">
-            {sortedEvents(m.events).map((ev, i) => (
-              <div key={i} className="row" style={{ gap: 8, fontSize: 14, alignItems: "baseline" }}>
-                <span className="num" style={{ width: 42, textAlign: "right", color: "var(--muted)" }}>{ev.min}</span>
-                <span>{EVENT_ICON[ev.type] ?? "•"}</span>
-                <span>{ev.player ?? "—"}</span>
-                {ev.team && <span className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>{ev.team}</span>}
-              </div>
-            ))}
+          <div className="card__body" style={{ position: "relative", padding: "10px 14px" }}>
+            {/* center spine */}
+            <div style={{ position: "absolute", left: "50%", top: 8, bottom: 8, borderLeft: "2px solid var(--line)", transform: "translateX(-1px)" }} />
+            {sortedEvents(m.events).map((ev, i) => {
+              const home = ev.team === m.home?.name;
+              const icon = EVENT_ICON[ev.type] ?? "•";
+              const min = <span className="num muted">{ev.min}</span>;
+              return (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "baseline", padding: "5px 0", fontSize: 14 }}>
+                  <div style={{ textAlign: "right", paddingRight: 16 }}>
+                    {home && <>{ev.player ?? "—"} {icon} {min}</>}
+                  </div>
+                  <div style={{ textAlign: "left", paddingLeft: 16 }}>
+                    {!home && <>{min} {icon} {ev.player ?? "—"}</>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}
