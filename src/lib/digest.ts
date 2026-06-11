@@ -50,12 +50,6 @@ export type DigestData = {
 
 // --- Amsterdam-local formatting (DST-safe via Intl) -------------------------
 
-// Calendar date in Amsterdam, e.g. "2026-06-16" — used to group fixtures by day.
-function amsDate(d: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(d);
-}
 // Pretty header date, e.g. "Tue 16 Jun".
 function amsPretty(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -121,13 +115,19 @@ export async function buildDigest(now: Date): Promise<DigestData> {
     prisma.match.findMany({ include: { homeTeam: true, awayTeam: true }, orderBy: { kickoff: "asc" } }),
   ]);
 
-  const today = amsDate(now);
   const recap = matches.filter(
     (m) => m.status === "FINISHED" && m.homeScore != null &&
       m.kickoff >= windowStart && m.kickoff <= now,
   );
+  // Fixtures kicking off before the next daily digest (~24h out) — not just those
+  // sharing today's Amsterdam calendar date. The tournament is in North America,
+  // so evening/overnight games fall on the *next* Amsterdam day; a date-based
+  // filter would drop them, and since they're FINISHED by the next morning's
+  // digest they'd never get previewed at all. A 24h window previews every game
+  // exactly once, the morning before it kicks off.
+  const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const fixtures = matches.filter(
-    (m) => m.status !== "FINISHED" && amsDate(m.kickoff) === today,
+    (m) => m.status !== "FINISHED" && m.kickoff >= now && m.kickoff < windowEnd,
   );
   const rounds = [...new Set(fixtures.map(roundOf))];
 
@@ -300,10 +300,10 @@ export function renderDigestBlocks(
     blocks.push(divider, section(text));
   }
 
-  // 3) Today's fixtures + lock reminder
+  // 3) Tonight's fixtures + lock reminder (everything up to the next digest)
   if (d.fixtures.length) {
     const list = d.fixtures.map((m) => `\`${amsTime(m.kickoff)}\`  ${matchLine(m)}`).join("\n");
-    let text = `*📅 Today*\n${list}`;
+    let text = `*📅 Tonight*\n${list}`;
     text += `\n\n🔒 Scores — and your ⭐ joker — lock at each kickoff. Get them in!`;
     if (d.rounds.length) text += `\n_Joker round${d.rounds.length > 1 ? "s" : ""} in play: ${d.rounds.join(", ")}._`;
     blocks.push(divider, section(text));
