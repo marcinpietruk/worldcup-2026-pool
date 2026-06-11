@@ -10,8 +10,17 @@ name: Daily Slack digest
 
 on:
   schedule:
-    # 08:00 UTC = 10:00 in Amsterdam during the tournament (CEST, UTC+2).
-    - cron: "0 8 * * *"
+    # 04:27 UTC = 06:27 in Amsterdam during the tournament (CEST, UTC+2). Early
+    # morning: by ~06:30 all of the previous day's North-American kickoffs have
+    # finished and synced, so the digest reports a complete day of results.
+    #
+    # The odd minute (and the quiet pre-dawn-UTC hour) are deliberate: GitHub
+    # only runs scheduled jobs on a best-effort basis and delays them under load.
+    # The top of the hour at popular UTC times is the most contended slot, which
+    # is why the old "0 8" routinely fired 2–4 h late. An off-the-hour minute in
+    # a low-traffic window is dispatched far closer to on time (still not
+    # guaranteed — switch to an external scheduler if it must be exact).
+    - cron: "27 4 * * *"
   workflow_dispatch: # manual runs from the Actions tab
     inputs:
       force:
