@@ -165,6 +165,13 @@ export function canonicalTeamName(raw: string): string {
   return ALIASES_NORM[norm] ?? CANONICAL_BY_NORM[norm] ?? trimmed;
 }
 
+// True only for a real, recognized national team. Lets a live provider tell an
+// actual country from a not-yet-resolved bracket placeholder (e.g. ESPN's
+// "Group A 2nd Place" / "Group C Winner"), so the sync never invents a team.
+export function isCanonicalTeam(name: string): boolean {
+  return Boolean(ALPHA2[name] || SPECIAL_FLAGS[name]);
+}
+
 export function flagFor(name: string): string {
   if (SPECIAL_FLAGS[name]) return SPECIAL_FLAGS[name];
   const code = ALPHA2[name];

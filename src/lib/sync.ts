@@ -22,6 +22,13 @@ function groupKey(group: string | null, a: string | null, b: string | null): str
   return `${group}|${[a, b].sort().join("~")}`;
 }
 
+// Unordered key from the team pair alone. A pairing is unique within the group
+// stage, so this matches even when a provider (e.g. ESPN) omits the group letter.
+function pairKey(a: string | null, b: string | null): string | null {
+  if (!a || !b) return null;
+  return [a, b].sort().join("~");
+}
+
 async function getOrCreateTeamByName(
   name: string,
   cache: Map<string, string>,
@@ -56,14 +63,18 @@ export async function syncLiveResults(): Promise<SyncResult> {
   // Preload existing teams into the cache.
   for (const t of await prisma.team.findMany()) teamCache.set(t.name, t.id);
 
-  // Group-stage matches keyed by group + team pair.
+  // Group-stage matches indexed two ways: by group+pair (preferred), and by team
+  // pair alone (fallback for providers like ESPN that don't expose the group).
   const dbGroupByKey = new Map<string, Match>();
+  const dbGroupByPair = new Map<string, Match>();
   for (const m of dbMatches) {
     if (m.stage !== "GROUP") continue;
     const home = teamNameById(teamCache, m.homeTeamId);
     const away = teamNameById(teamCache, m.awayTeamId);
     const key = groupKey(m.group, home, away);
     if (key) dbGroupByKey.set(key, m);
+    const pk = pairKey(home, away);
+    if (pk) dbGroupByPair.set(pk, m);
   }
 
   // Knockout matches grouped by stage, sorted by kickoff (align with API by order).
@@ -98,7 +109,10 @@ export async function syncLiveResults(): Promise<SyncResult> {
   for (const f of live) {
     if (f.stage !== "GROUP") continue;
     const key = groupKey(f.group, f.homeName, f.awayName);
-    const target = key ? dbGroupByKey.get(key) : undefined;
+    // Prefer group+pair; fall back to the team pair when the provider omits group.
+    const target =
+      (key ? dbGroupByKey.get(key) : undefined) ??
+      dbGroupByPair.get(pairKey(f.homeName, f.awayName) ?? "");
     if (!target) continue;
     matched++;
     const provHomeId = f.homeName ? teamCache.get(f.homeName) ?? null : null;
