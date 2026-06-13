@@ -41,6 +41,7 @@ export type DigestData = {
   now: Date;
   settingsId: number;
   hasContent: boolean; // false on a quiet day (nothing new, no games) → skip posting
+  alreadyPostedToday: boolean; // a real post already went out today (Ams) → retry fires skip
   standings: StandingRow[];
   recap: MatchT[]; // matches finished since the last digest
   gainers: Array<{ name: string; pts: number; exact: number }>; // who scored in that window
@@ -64,6 +65,12 @@ function amsPretty(d: Date): string {
 function amsTime(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(d);
+}
+// Amsterdam calendar date key, e.g. "2026-06-13" — drives the once-a-day guard.
+function amsDateKey(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(d);
 }
 
@@ -107,6 +114,13 @@ function roundOf(m: MatchT): string {
 export async function buildDigest(now: Date): Promise<DigestData> {
   const settings = await getSettings();
   const prev = (settings.digestSnapshot as Snapshot | null) ?? null;
+
+  // A real post advances the snapshot's `takenAt`. If that's already today
+  // (Amsterdam), we've posted today — so the morning's retry fires can skip,
+  // which is what lets cron-job.org fire a few times without double-posting.
+  const alreadyPostedToday = prev?.takenAt
+    ? amsDateKey(new Date(prev.takenAt)) === amsDateKey(now)
+    : false;
 
   // First-run fallback window: with no prior snapshot, report finished matches
   // from the last ~26h so the first digest isn't empty (without dumping the whole
@@ -211,6 +225,7 @@ export async function buildDigest(now: Date): Promise<DigestData> {
     now,
     settingsId: settings.id,
     hasContent: recap.length > 0 || fixtures.length > 0,
+    alreadyPostedToday,
     standings,
     recap,
     gainers,
@@ -223,12 +238,23 @@ export async function buildDigest(now: Date): Promise<DigestData> {
   };
 }
 
-// Persist the standings baseline after a real post (not for previews).
+// Persist the standings baseline (and the implicit "posted today" marker, via
+// snapshot.takenAt) after a real post — not for previews. Best-effort: the Slack
+// message has already gone out by the time we get here, so a transient DB hiccup
+// must never throw. That would 500 a successful post and, worse, leave takenAt
+// stale so the next retry fire double-posts. One quick retry, then give up.
 export async function saveDigestSnapshot(d: DigestData): Promise<void> {
-  await prisma.settings.update({
-    where: { id: d.settingsId },
-    data: { digestSnapshot: d.snapshot as unknown as Prisma.InputJsonValue },
-  });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await prisma.settings.update({
+        where: { id: d.settingsId },
+        data: { digestSnapshot: d.snapshot as unknown as Prisma.InputJsonValue },
+      });
+      return;
+    } catch {
+      if (attempt === 2) return; // give up; the movement baseline just won't advance
+    }
+  }
 }
 
 // Compact, plain-text fact sheet handed to the commentary model. Everything the

@@ -43,6 +43,13 @@ async function handle(req: Request) {
     if (dry) {
       return ok({ dry: true, hasContent: digest.hasContent, commentary, text, blocks });
     }
+
+    // Idempotency: a real post already went out today → skip, so the morning's
+    // 10:00/10:05/10:10 retry fires are safe no-ops. A cold-start failure on the
+    // first fire is simply picked up by the next, and we never double-post.
+    if (digest.alreadyPostedToday && !force) {
+      return ok({ posted: false, skipped: true, reason: "already posted today" });
+    }
     // Quiet day: nothing new and no games → stay silent (unless forced).
     if (!digest.hasContent && !force) {
       return ok({ posted: false, skipped: true, reason: "no results since last digest and no games today" });
