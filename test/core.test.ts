@@ -6,7 +6,7 @@ import { parseFdMatch } from "../src/lib/providers/footballData";
 import { canonicalTeamName, normalizeTeamName, flagFor } from "../src/lib/teams";
 import { pointsForPrediction, bracketWindow } from "../src/lib/scoring";
 import { computeStandings } from "../src/lib/standings";
-import { bracketRounds, candidates, deriveRoundPicks, reconstructWinners, normalizeWinners } from "../src/lib/bracket";
+import { bracketRounds, candidates, deriveRoundPicks, reconstructWinners, normalizeWinners, winnersFromScores } from "../src/lib/bracket";
 import type { MatchDTO } from "../src/lib/client";
 
 test("parseKickoffUtc converts local-with-offset to UTC", () => {
@@ -192,6 +192,22 @@ test("bracket: derive picks, reconstruct, and normalize", () => {
   // Flipping SF101 to B invalidates the stale final winner (A no longer a candidate).
   const flipped = normalizeWinners({ 101: "B", 102: "C", 104: "A" }, rounds);
   assert.equal(flipped[104], undefined);
+
+  // Winners follow the predicted scores: higher score advances and cascades into
+  // the next round, so the final's candidates resolve from the semi scores.
+  const fromScores = winnersFromScores(
+    { m101: { home: "2", away: "1" }, m102: { home: "0", away: "3" }, m104: { home: "1", away: "0" } },
+    rounds,
+  );
+  assert.deepEqual(fromScores, { 101: "A", 102: "D", 104: "A" });
+
+  // A level semi (a draw) advances no one, so the final stays unresolved even with
+  // a score entered against it — there are no candidates to award it to.
+  const withDraw = winnersFromScores(
+    { m101: { home: "1", away: "1" }, m102: { home: "0", away: "3" }, m104: { home: "2", away: "0" } },
+    rounds,
+  );
+  assert.deepEqual(withDraw, { 102: "D" });
 });
 
 test("bracketRounds orders columns by the tree, not by match number", () => {

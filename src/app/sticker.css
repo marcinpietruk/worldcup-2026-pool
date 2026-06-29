@@ -371,6 +371,7 @@ a { color: inherit; text-decoration: none; }
 .bmatch__ft { display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 4px 10px 5px; font-size: 10.5px; color: var(--ink-faint); border-top: var(--bd-thin); }
 .bmatch__when { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmatch__hint { padding: 1px 10px 0; font-size: 10px; font-weight: 700; color: var(--ink-faint); text-align: center; }
 .jstar { background: none; border: none; color: var(--gold); cursor: pointer; padding: 0; line-height: 1; display: inline-flex; }
 .jstar .ic-svg { width: 15px; height: 15px; }
 .jstar.static { cursor: default; }

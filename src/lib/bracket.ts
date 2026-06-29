@@ -70,6 +70,32 @@ export function candidates(
   ];
 }
 
+// Winners derived purely from the predicted scores: the higher-scored side of
+// each tie advances — no separate "who advances" pick. Rounds are walked in
+// order (R32 → FINAL) so an earlier tie's winner resolves the candidates of the
+// tie it feeds. A level score (a draw) advances no one, so its downstream slot
+// stays TBD until a decisive score is entered.
+export function winnersFromScores(
+  scores: Record<string, { home: string; away: string }>,
+  rounds: Round[],
+): Record<number, string> {
+  const winners: Record<number, string> = {};
+  for (const r of rounds) {
+    for (const m of r.matches) {
+      const [h, a] = candidates(m, winners);
+      if (!h || !a) continue;
+      const sc = scores[m.id];
+      if (!sc || sc.home === "" || sc.away === "") continue;
+      const hs = Number(sc.home);
+      const as = Number(sc.away);
+      if (!Number.isFinite(hs) || !Number.isFinite(as)) continue;
+      if (hs > as) winners[m.number] = h;
+      else if (as > hs) winners[m.number] = a;
+    }
+  }
+  return winners;
+}
+
 // Drop any winner that is no longer a valid candidate of its match (e.g. after an
 // upstream pick changed). Iterates to a fixed point.
 export function normalizeWinners(winners: Record<number, string>, rounds: Round[]): Record<number, string> {

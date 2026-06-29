@@ -6,8 +6,7 @@ import {
   bracketRounds,
   candidates,
   deriveRoundPicks,
-  normalizeWinners,
-  reconstructWinners,
+  winnersFromScores,
   type KoStage,
 } from "@/lib/bracket";
 import { Trophy, Star, Shield } from "lucide-react";
@@ -32,7 +31,6 @@ type ScoreEntry = { matchId: string; homeScore: number; awayScore: number };
 
 export function BracketBoard({
   matches,
-  saved,
   predictions,
   editable,
   jokerIds,
@@ -40,7 +38,6 @@ export function BracketBoard({
   onSave,
 }: {
   matches: MatchDTO[];
-  saved: Record<string, string[]>;
   predictions: Record<string, { homeScore: number; awayScore: number }>;
   editable: boolean;
   jokerIds: string[];
@@ -49,7 +46,6 @@ export function BracketBoard({
 }) {
   const rounds = useMemo(() => bracketRounds(matches), [matches]);
   const byId = useMemo(() => new Map(matches.map((m) => [m.id, m])), [matches]);
-  const lockedByNum = useMemo(() => new Map(matches.map((m) => [m.number, m.locked])), [matches]);
   const teamById = useMemo(() => {
     const map = new Map<string, TeamDTO>();
     for (const m of matches) {
@@ -59,12 +55,15 @@ export function BracketBoard({
     return map;
   }, [matches]);
 
-  const [winners, setWinners] = useState<Record<number, string>>(() => reconstructWinners(saved, rounds));
   const [scores, setScores] = useState<Record<string, { home: string; away: string }>>(() => {
     const init: Record<string, { home: string; away: string }> = {};
     for (const [id, p] of Object.entries(predictions)) init[id] = { home: String(p.homeScore), away: String(p.awayScore) };
     return init;
   });
+  // Who advances is no longer a separate pick — it's read straight off the
+  // predicted scores: the higher-scored side of each tie wins and fills the next
+  // round. Recomputes live as scores change.
+  const winners = useMemo(() => winnersFromScores(scores, rounds), [scores, rounds]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -111,15 +110,10 @@ export function BracketBoard({
     return () => { clearTimeout(id); ro.disconnect(); window.removeEventListener("resize", draw); };
   }, [rounds, winners]);
 
-  function pick(matchNumber: number, teamId: string | null) {
-    // A tie's "who advances" pick freezes at its own kickoff, like the group stage.
-    if (!editable || !teamId || lockedByNum.get(matchNumber)) return;
-    setWinners((prev) => normalizeWinners({ ...prev, [matchNumber]: teamId }, rounds));
-    setMsg(null);
-  }
   function setScore(matchId: string, side: "home" | "away", value: string) {
     const v = value.replace(/\D/g, "").slice(0, 2);
     setScores((s) => ({ ...s, [matchId]: { home: s[matchId]?.home ?? "", away: s[matchId]?.away ?? "", [side]: v } }));
+    setMsg(null);
   }
 
   // A not-yet-advanced slot reads as the round + winner that will fill it, e.g.
@@ -161,6 +155,9 @@ export function BracketBoard({
                 const sc = scores[m.id];
                 const canEdit = editable && !m.locked;
                 const statusTag = m.status === "FINISHED" ? "FT" : m.status === "LIVE" ? (m.statusDetail ?? "LIVE") : null;
+                // Both scores filled but level: no one advances (a knockout can't
+                // end level), so flag it instead of silently leaving the next slot TBD.
+                const isDraw = bothKnown && sc?.home !== "" && sc?.away !== "" && sc?.home != null && sc?.away != null && Number(sc.home) === Number(sc.away);
                 return (
                   <div key={m.id} className="bmatch" data-mb={m.number}>
                     <div className="bmatch__hd">
@@ -171,8 +168,6 @@ export function BracketBoard({
                       team={hId ? teamById.get(hId) : undefined}
                       label={progressionLabel(m.sourceHomeNum) ?? m.home?.name ?? m.homeLabel}
                       win={!!hId && winners[m.number] === hId}
-                      clickable={canEdit && !!hId}
-                      onClick={() => pick(m.number, hId)}
                       showScore={bothKnown}
                       editScore={canEdit && bothKnown}
                       score={sc?.home ?? ""}
@@ -182,13 +177,14 @@ export function BracketBoard({
                       team={aId ? teamById.get(aId) : undefined}
                       label={progressionLabel(m.sourceAwayNum) ?? m.away?.name ?? m.awayLabel}
                       win={!!aId && winners[m.number] === aId}
-                      clickable={canEdit && !!aId}
-                      onClick={() => pick(m.number, aId)}
                       showScore={bothKnown}
                       editScore={canEdit && bothKnown}
                       score={sc?.away ?? ""}
                       onScore={(v) => setScore(m.id, "away", v)}
                     />
+                    {isDraw && (
+                      <div className="bmatch__hint">Level — a decisive score advances a team</div>
+                    )}
                     <div className="bmatch__ft">
                       <span className="bmatch__when">{formatKickoff(m.kickoff)}</span>
                       {canEdit && bothKnown ? (
@@ -228,12 +224,10 @@ export function BracketBoard({
   );
 }
 
-function Row({ team, label, win, clickable, onClick, showScore, editScore, score, onScore }: {
+function Row({ team, label, win, showScore, editScore, score, onScore }: {
   team: TeamDTO | undefined;
   label: string | null | undefined;
   win: boolean;
-  clickable: boolean;
-  onClick: () => void;
   showScore: boolean;
   editScore: boolean;
   score: string;
@@ -241,10 +235,10 @@ function Row({ team, label, win, clickable, onClick, showScore, editScore, score
 }) {
   return (
     <div className={`brow${win ? " is-win" : ""}`}>
-      <button type="button" className="brow__team" disabled={!clickable} onClick={onClick}>
+      <div className="brow__team">
         {team ? <Flag iso2={team.iso2} name={team.name} size="sm" /> : <Shield className="brow__shield" aria-hidden />}
         <span className={`brow__name${team ? "" : " tbd"}`}>{team?.name ?? label ?? "TBD"}</span>
-      </button>
+      </div>
       {showScore &&
         (editScore ? (
           <input className="brow__sc brow__sc--inp" value={score} onChange={(e) => onScore(e.target.value)} inputMode="numeric" aria-label="score" />

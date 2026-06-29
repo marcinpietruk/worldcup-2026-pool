@@ -27,9 +27,10 @@ export default function RulesPage() {
             <b>{s.jokerPenalty} points</b>. Movable until that match kicks off.
           </Rule>
           <Rule Icon={Goal} title="Knockout bracket">
-            Advance teams through the bracket so each tie has a matchup, then predict its exact score. Ties score
-            exactly like the group stage — <b>{s.pointsExact} pts</b> exact, <b>{s.pointsResult} pt</b> result.
-            There&apos;s <b>no separate bonus</b> for picking who advances; your joker still doubles a tie.
+            Predict each tie&apos;s exact score — the higher score advances that team automatically and fills the next
+            round (a draw advances no one, so call a decisive score). Ties score exactly like the group stage —
+            <b> {s.pointsExact} pts</b> exact, <b>{s.pointsResult} pt</b> result. There&apos;s <b>no separate bonus</b> for
+            advancing a team; your joker still doubles a tie.
           </Rule>
           <Rule Icon={Sparkles} title="Tournament bonuses">
             Editable through the tournament — they lock when the final kicks off: Champion <b>+{s.bonusTournamentChampion}</b>,
