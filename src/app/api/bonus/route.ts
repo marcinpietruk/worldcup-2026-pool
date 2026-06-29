@@ -2,7 +2,6 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, bad, serverError } from "@/lib/http";
 import { verifyPin } from "@/lib/auth";
-import { getSettings } from "@/lib/settings";
 import { isBonusLocked } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +23,7 @@ export async function POST(req: Request) {
     const auth = await verifyPin(playerId, pin);
     if (!auth.ok) return bad(auth.error, auth.status);
 
-    const settings = await getSettings();
-    if (isBonusLocked(settings)) return bad("Bonus picks are locked (tournament has started).", 403);
+    if (await isBonusLocked()) return bad("Bonus picks are locked — the final has kicked off.", 403);
 
     if (championTeamId && runnerUpTeamId && championTeamId === runnerUpTeamId) {
       return bad("Champion and runner-up must be different teams.");

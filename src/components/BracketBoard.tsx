@@ -10,9 +10,10 @@ import {
   reconstructWinners,
   type KoStage,
 } from "@/lib/bracket";
-import { Trophy, Star } from "lucide-react";
+import { Trophy, Star, Shield } from "lucide-react";
 import { Flag } from "./Flag";
 import { Button } from "./ui";
+import { formatKickoff } from "@/lib/format";
 
 const STAGE_TITLE: Record<KoStage, string> = {
   R32: "Round of 32",
@@ -22,14 +23,9 @@ const STAGE_TITLE: Record<KoStage, string> = {
   FINAL: "Final",
 };
 
-// Short tag used in placeholder hints for not-yet-decided slots ("Winner QF").
-const STAGE_SHORT: Record<string, string> = {
-  R32: "R32",
-  R16: "R16",
-  QF: "QF",
-  SF: "SF",
-  FINAL: "the final",
-};
+// Short round tag for a not-yet-decided slot — the feeding round + the winner's
+// position in it, ESPN-style: "RD32 W2", "RD16 W1", "QF W1".
+const RD_LABEL: Record<string, string> = { R32: "RD32", R16: "RD16", QF: "QF", SF: "SF", FINAL: "Final" };
 
 type Line = { left: number; top: number; width: number; height: number };
 type ScoreEntry = { matchId: string; homeScore: number; awayScore: number };
@@ -53,7 +49,6 @@ export function BracketBoard({
 }) {
   const rounds = useMemo(() => bracketRounds(matches), [matches]);
   const byId = useMemo(() => new Map(matches.map((m) => [m.id, m])), [matches]);
-  const byNum = useMemo(() => new Map(matches.map((m) => [m.number, m])), [matches]);
   const lockedByNum = useMemo(() => new Map(matches.map((m) => [m.number, m.locked])), [matches]);
   const teamById = useMemo(() => {
     const map = new Map<string, TeamDTO>();
@@ -127,21 +122,14 @@ export function BracketBoard({
     setScores((s) => ({ ...s, [matchId]: { home: s[matchId]?.home ?? "", away: s[matchId]?.away ?? "", [side]: v } }));
   }
 
-  // Friendly text for an empty slot. When the feeding tie's two teams are known
-  // (always true for the Round of 16 once groups are done), show the matchup it
-  // depends on, e.g. "RSA / CAN"; otherwise the stage it comes from, "Winner QF".
-  function slotLabel(sourceNum: number | null, fallback: string | null): string {
-    if (sourceNum != null) {
-      const feeder = byNum.get(sourceNum);
-      if (feeder) {
-        const [fh, fa] = candidates(feeder, winners);
-        const a = fh ? teamById.get(fh) : undefined;
-        const b = fa ? teamById.get(fa) : undefined;
-        if (a && b) return `${a.code ?? a.name} / ${b.code ?? b.name}`;
-        return `Winner ${STAGE_SHORT[feeder.stage] ?? feeder.stage}`;
-      }
-    }
-    return fallback ?? "TBD";
+  // A not-yet-advanced slot reads as the round + winner that will fill it, e.g.
+  // "RD32 W2" = winner of the 2nd Round-of-32 tie. Null for resolved/R32 slots.
+  function progressionLabel(sourceNum: number | null): string | null {
+    if (sourceNum == null) return null;
+    const round = rounds.find((r) => r.matches.some((x) => x.number === sourceNum));
+    if (!round) return null;
+    const idx = round.matches.findIndex((x) => x.number === sourceNum) + 1;
+    return `${RD_LABEL[round.stage] ?? round.stage} W${idx}`;
   }
 
   async function save() {
@@ -171,28 +159,46 @@ export function BracketBoard({
                 const bothKnown = !!hId && !!aId;
                 const isJoker = jokerIds.includes(m.id);
                 const sc = scores[m.id];
+                const canEdit = editable && !m.locked;
+                const statusTag = m.status === "FINISHED" ? "FT" : m.status === "LIVE" ? (m.statusDetail ?? "LIVE") : null;
                 return (
-                  <div key={m.id} className="mb" data-mb={m.number}>
-                    <Seat teamId={hId} placeholder={slotLabel(m.sourceHomeNum, m.home?.name ?? m.homeLabel)} team={hId ? teamById.get(hId) : undefined} picked={!!hId && winners[m.number] === hId} editable={editable && !m.locked} onClick={() => pick(m.number, hId)} />
-                    <Seat teamId={aId} placeholder={slotLabel(m.sourceAwayNum, m.away?.name ?? m.awayLabel)} team={aId ? teamById.get(aId) : undefined} picked={!!aId && winners[m.number] === aId} editable={editable && !m.locked} onClick={() => pick(m.number, aId)} />
-                    {bothKnown && (
-                      <div className="bscore">
-                        {editable && !m.locked ? (
-                          <>
-                            <input className="bsinp" value={sc?.home ?? ""} onChange={(e) => setScore(m.id, "home", e.target.value)} inputMode="numeric" aria-label="home score" />
-                            <span className="colon">:</span>
-                            <input className="bsinp" value={sc?.away ?? ""} onChange={(e) => setScore(m.id, "away", e.target.value)} inputMode="numeric" aria-label="away score" />
-                            <button type="button" className={`jbtn jbtn--xs${isJoker ? "" : " off"}`} onClick={() => onToggleJoker(m.id)} title={isJoker ? "Remove joker" : "Joker this tie"} style={{ color: "var(--gold)" }}>
-                              <Star className="ic-svg" fill={isJoker ? "currentColor" : "none"} />
-                            </button>
-                          </>
-                        ) : (
-                          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>
-                            {sc ? `${sc.home}–${sc.away}` : "—"} {isJoker && <span className="star">⭐</span>}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                  <div key={m.id} className="bmatch" data-mb={m.number}>
+                    <div className="bmatch__hd">
+                      <span className="bmatch__status">{statusTag}</span>
+                      <span className="bmatch__num">Match {m.number}</span>
+                    </div>
+                    <Row
+                      team={hId ? teamById.get(hId) : undefined}
+                      label={progressionLabel(m.sourceHomeNum) ?? m.home?.name ?? m.homeLabel}
+                      win={!!hId && winners[m.number] === hId}
+                      clickable={canEdit && !!hId}
+                      onClick={() => pick(m.number, hId)}
+                      showScore={bothKnown}
+                      editScore={canEdit && bothKnown}
+                      score={sc?.home ?? ""}
+                      onScore={(v) => setScore(m.id, "home", v)}
+                    />
+                    <Row
+                      team={aId ? teamById.get(aId) : undefined}
+                      label={progressionLabel(m.sourceAwayNum) ?? m.away?.name ?? m.awayLabel}
+                      win={!!aId && winners[m.number] === aId}
+                      clickable={canEdit && !!aId}
+                      onClick={() => pick(m.number, aId)}
+                      showScore={bothKnown}
+                      editScore={canEdit && bothKnown}
+                      score={sc?.away ?? ""}
+                      onScore={(v) => setScore(m.id, "away", v)}
+                    />
+                    <div className="bmatch__ft">
+                      <span className="bmatch__when">{formatKickoff(m.kickoff)}</span>
+                      {canEdit && bothKnown ? (
+                        <button type="button" className={`jstar${isJoker ? " on" : ""}`} onClick={() => onToggleJoker(m.id)} title={isJoker ? "Remove joker" : "Joker this tie"}>
+                          <Star className="ic-svg" fill={isJoker ? "currentColor" : "none"} />
+                        </button>
+                      ) : (
+                        isJoker && <span className="jstar on static" title="Your joker">⭐</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -222,19 +228,30 @@ export function BracketBoard({
   );
 }
 
-function Seat({ teamId, team, placeholder, picked, editable, onClick }: {
-  teamId: string | null;
+function Row({ team, label, win, clickable, onClick, showScore, editScore, score, onScore }: {
   team: TeamDTO | undefined;
-  placeholder: string | null | undefined;
-  picked: boolean;
-  editable: boolean;
+  label: string | null | undefined;
+  win: boolean;
+  clickable: boolean;
   onClick: () => void;
+  showScore: boolean;
+  editScore: boolean;
+  score: string;
+  onScore: (v: string) => void;
 }) {
-  const clickable = editable && !!teamId;
   return (
-    <button type="button" onClick={onClick} disabled={!clickable} className={`bseat${picked ? " pick" : ""}${!team ? " dim" : ""}${clickable ? " clickable" : ""}`}>
-      {team ? <Flag iso2={team.iso2} name={team.name} size="sm" /> : <span className="flag flag--sm flag--tbd" />}
-      <span className="bn">{team?.name ?? placeholder ?? "TBD"}</span>
-    </button>
+    <div className={`brow${win ? " is-win" : ""}`}>
+      <button type="button" className="brow__team" disabled={!clickable} onClick={onClick}>
+        {team ? <Flag iso2={team.iso2} name={team.name} size="sm" /> : <Shield className="brow__shield" aria-hidden />}
+        <span className={`brow__name${team ? "" : " tbd"}`}>{team?.name ?? label ?? "TBD"}</span>
+      </button>
+      {showScore &&
+        (editScore ? (
+          <input className="brow__sc brow__sc--inp" value={score} onChange={(e) => onScore(e.target.value)} inputMode="numeric" aria-label="score" />
+        ) : (
+          <span className="brow__sc">{score !== "" ? score : "–"}</span>
+        ))}
+      <span className="brow__mark">{win ? "◄" : ""}</span>
+    </div>
   );
 }

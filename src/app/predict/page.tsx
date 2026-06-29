@@ -308,8 +308,8 @@ function BonusTab({ state, onSaved }: { state: StateResponse; onSaved: () => Pro
 
   return (
     <div className="stack">
-      <SectionTitle sub="One-off calls for the whole tournament. Lock at the first kickoff.">Tournament bonuses</SectionTitle>
-      {locked && <Message kind="info">🔒 Bonus picks are locked — the tournament has started.</Message>}
+      <SectionTitle sub="One-off calls for the whole tournament — editable until the final kicks off.">Tournament bonuses</SectionTitle>
+      {locked && <Message kind="info">🔒 Bonus picks are locked — the final has kicked off.</Message>}
       <Card>
         <div className="card__body stack-sm">
           <div className="field">

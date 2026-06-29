@@ -13,14 +13,16 @@ export function isMatchLocked(match: Pick<Match, "kickoff">, now = new Date()): 
   return now.getTime() >= new Date(match.kickoff).getTime();
 }
 
-// Tournament bonus picks (champion / runner-up / golden boot) lock at the first
-// kickoff — they're pre-tournament calls.
-export function isBonusLocked(
-  settings: Pick<Settings, "tournamentStart">,
-  now = new Date(),
-): boolean {
-  if (!settings.tournamentStart) return false;
-  return now.getTime() >= new Date(settings.tournamentStart).getTime();
+// Tournament bonus picks (champion / runner-up / golden boot) stay editable
+// through the tournament and lock when the FINAL kicks off — so they can be
+// adjusted as the field narrows, but not once the decisive match is under way
+// (which would let someone name the actual winner for free points).
+export async function isBonusLocked(now = new Date()): Promise<boolean> {
+  const final = await prisma.match.findFirst({
+    where: { stage: "FINAL" },
+    select: { kickoff: true },
+  });
+  return final ? now.getTime() >= final.kickoff.getTime() : false;
 }
 
 export type BracketStatus = "PENDING_GROUPS" | "OPEN";

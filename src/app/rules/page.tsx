@@ -32,13 +32,13 @@ export default function RulesPage() {
             There&apos;s <b>no separate bonus</b> for picking who advances; your joker still doubles a tie.
           </Rule>
           <Rule Icon={Sparkles} title="Tournament bonuses">
-            Locked in before any game starts: Champion <b>+{s.bonusTournamentChampion}</b>, Runner-up{" "}
-            <b>+{s.bonusRunnerUp}</b>, Golden Boot <b>+{s.bonusGoldenBoot}</b>.
+            Editable through the tournament — they lock when the final kicks off: Champion <b>+{s.bonusTournamentChampion}</b>,
+            Runner-up <b>+{s.bonusRunnerUp}</b>, Golden Boot <b>+{s.bonusGoldenBoot}</b>.
           </Rule>
           <Rule Icon={Lock} title="Locking">
             Match picks lock at kickoff. The bracket opens once the group stage is over
             { s.groupStageEnd ? ` (around ${new Date(s.groupStageEnd).toLocaleDateString()})` : "" }; from then each tie
-            locks at its own kickoff, just like the group stage. Bonuses lock at the first kickoff. All enforced on the server.
+            locks at its own kickoff, just like the group stage. Bonuses stay editable until the final kicks off. All enforced on the server.
           </Rule>
           <Rule Icon={Crown} title="Winning">
             Most points wins. Ties broken by most exact scores, then most correct results.

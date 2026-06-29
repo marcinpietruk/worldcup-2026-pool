@@ -76,6 +76,8 @@ export async function GET(req: Request) {
       ),
     ];
 
+    const bonusLocked = await isBonusLocked();
+
     return ok({
       qualifiedTeamIds,
       settings: {
@@ -89,7 +91,7 @@ export async function GET(req: Request) {
         tournamentStart: settings.tournamentStart?.toISOString() ?? null,
         groupStageEnd: settings.groupStageEnd?.toISOString() ?? null,
         knockoutStart: settings.knockoutStart?.toISOString() ?? null,
-        bonusLocked: isBonusLocked(settings),
+        bonusLocked,
         bracketOpen: bracketWindow(settings).open,
         bracketStatus: bracketWindow(settings).status,
       },
