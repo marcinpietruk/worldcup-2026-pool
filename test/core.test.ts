@@ -194,6 +194,26 @@ test("bracket: derive picks, reconstruct, and normalize", () => {
   assert.equal(flipped[104], undefined);
 });
 
+test("bracketRounds orders columns by the tree, not by match number", () => {
+  const mk = (num: number, stage: string, sh: number | null, sa: number | null): MatchDTO =>
+    ({
+      id: `m${num}`, number: num, stage, group: null, matchday: null, kickoff: "2026-07-01T00:00:00Z",
+      status: "SCHEDULED", sourceHomeNum: sh, sourceAwayNum: sa,
+      home: null, away: null, homeLabel: null, awayLabel: null, homeScore: null, awayScore: null, locked: false,
+    }) as MatchDTO;
+  // Real WC wiring (top of bracket): R16 #89 <- R32 74,77 ; #90 <- 73,75 ; QF <- 89,90.
+  // Leaves are deliberately handed in numeric order to prove they get re-ordered.
+  const matches = [
+    mk(73, "R32", null, null), mk(74, "R32", null, null), mk(75, "R32", null, null), mk(77, "R32", null, null),
+    mk(89, "R16", 74, 77), mk(90, "R16", 73, 75),
+    mk(97, "FINAL", 89, 90), // stands in for the root in this mini tree
+  ];
+  const rounds = bracketRounds(matches);
+  const order = (stage: string) => rounds.find((r) => r.stage === stage)!.matches.map((m) => m.number);
+  assert.deepEqual(order("R32"), [74, 77, 73, 75]); // bracket-tree order, not 73,74,75,77
+  assert.deepEqual(order("R16"), [89, 90]); // #89 (fed by the top two) sits above #90
+});
+
 const SETTINGS = { pointsExact: 3, pointsResult: 1 };
 const finished = (h: number, a: number) =>
   ({ homeScore: h, awayScore: a, status: "FINISHED" }) as const;

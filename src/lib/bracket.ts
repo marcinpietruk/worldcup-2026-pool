@@ -15,28 +15,44 @@ const ADVANCES_TO: Record<KoStage, string> = {
 
 export type Round = { stage: KoStage; matches: MatchDTO[] };
 
-// Order each knockout round so the tree lines up: R32 by match number, then each
-// later round by the position of its feeder matches in the previous round.
+// Order each knockout round by the BRACKET TREE, not by match number, so columns
+// line up like a real bracket (each tie sits between the two ties feeding it).
+// We lay the tree out from the final down with an in-order walk: every match gets
+// a vertical coordinate = the midpoint of its two feeders' coordinates (leaves —
+// the R32 ties — take successive slots), then each round is sorted by it.
 export function bracketRounds(matches: MatchDTO[]): Round[] {
-  const byStage = (s: string) => matches.filter((m) => m.stage === s);
-  let prev = byStage("R32").slice().sort((a, b) => a.number - b.number);
-  const rounds: Round[] = [{ stage: "R32", matches: prev }];
-  const posOf = (arr: MatchDTO[], num: number | null) => {
-    const i = num == null ? -1 : arr.findIndex((m) => m.number === num);
-    return i === -1 ? Number.POSITIVE_INFINITY : i;
+  const byNum = new Map(matches.map((m) => [m.number, m]));
+  const y = new Map<number, number>();
+  let leaf = 0;
+
+  const layout = (m: MatchDTO): number => {
+    // Recurse into the feeders lowest-match-number first: official bracket
+    // numbering then lays the tree out top-to-bottom exactly (e.g. R32 as
+    // 74, 77, 73, 75 with R16 #89 above #90).
+    const kids = [m.sourceHomeNum, m.sourceAwayNum]
+      .filter((n): n is number => n != null)
+      .map((n) => byNum.get(n))
+      .filter((x): x is MatchDTO => !!x)
+      .sort((a, b) => a.number - b.number);
+    if (kids.length === 0) {
+      const yy = leaf++;
+      y.set(m.number, yy);
+      return yy;
+    }
+    const ys = kids.map(layout);
+    const yy = (ys[0] + ys[ys.length - 1]) / 2;
+    y.set(m.number, yy);
+    return yy;
   };
-  for (const stage of ["R16", "QF", "SF", "FINAL"] as KoStage[]) {
-    const arr = byStage(stage)
-      .slice()
-      .sort(
-        (a, b) =>
-          Math.min(posOf(prev, a.sourceHomeNum), posOf(prev, a.sourceAwayNum)) -
-          Math.min(posOf(prev, b.sourceHomeNum), posOf(prev, b.sourceAwayNum)),
-      );
-    rounds.push({ stage, matches: arr });
-    prev = arr;
-  }
-  return rounds;
+
+  const root = matches.find((m) => m.stage === "FINAL");
+  if (root) layout(root);
+
+  const coord = (m: MatchDTO) => y.get(m.number) ?? m.number;
+  return KO_STAGES.map((stage) => ({
+    stage,
+    matches: matches.filter((m) => m.stage === stage).sort((a, b) => coord(a) - coord(b)),
+  }));
 }
 
 // The two team ids that can fill a match's slots, given winners picked so far.
