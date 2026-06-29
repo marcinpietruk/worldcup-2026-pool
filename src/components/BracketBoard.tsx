@@ -22,6 +22,15 @@ const STAGE_TITLE: Record<KoStage, string> = {
   FINAL: "Final",
 };
 
+// Short tag used in placeholder hints for not-yet-decided slots ("Winner QF").
+const STAGE_SHORT: Record<string, string> = {
+  R32: "R32",
+  R16: "R16",
+  QF: "QF",
+  SF: "SF",
+  FINAL: "the final",
+};
+
 type Line = { left: number; top: number; width: number; height: number };
 type ScoreEntry = { matchId: string; homeScore: number; awayScore: number };
 
@@ -44,6 +53,8 @@ export function BracketBoard({
 }) {
   const rounds = useMemo(() => bracketRounds(matches), [matches]);
   const byId = useMemo(() => new Map(matches.map((m) => [m.id, m])), [matches]);
+  const byNum = useMemo(() => new Map(matches.map((m) => [m.number, m])), [matches]);
+  const lockedByNum = useMemo(() => new Map(matches.map((m) => [m.number, m.locked])), [matches]);
   const teamById = useMemo(() => {
     const map = new Map<string, TeamDTO>();
     for (const m of matches) {
@@ -106,13 +117,31 @@ export function BracketBoard({
   }, [rounds, winners]);
 
   function pick(matchNumber: number, teamId: string | null) {
-    if (!editable || !teamId) return;
+    // A tie's "who advances" pick freezes at its own kickoff, like the group stage.
+    if (!editable || !teamId || lockedByNum.get(matchNumber)) return;
     setWinners((prev) => normalizeWinners({ ...prev, [matchNumber]: teamId }, rounds));
     setMsg(null);
   }
   function setScore(matchId: string, side: "home" | "away", value: string) {
     const v = value.replace(/\D/g, "").slice(0, 2);
     setScores((s) => ({ ...s, [matchId]: { home: s[matchId]?.home ?? "", away: s[matchId]?.away ?? "", [side]: v } }));
+  }
+
+  // Friendly text for an empty slot. When the feeding tie's two teams are known
+  // (always true for the Round of 16 once groups are done), show the matchup it
+  // depends on, e.g. "RSA / CAN"; otherwise the stage it comes from, "Winner QF".
+  function slotLabel(sourceNum: number | null, fallback: string | null): string {
+    if (sourceNum != null) {
+      const feeder = byNum.get(sourceNum);
+      if (feeder) {
+        const [fh, fa] = candidates(feeder, winners);
+        const a = fh ? teamById.get(fh) : undefined;
+        const b = fa ? teamById.get(fa) : undefined;
+        if (a && b) return `${a.code ?? a.name} / ${b.code ?? b.name}`;
+        return `Winner ${STAGE_SHORT[feeder.stage] ?? feeder.stage}`;
+      }
+    }
+    return fallback ?? "TBD";
   }
 
   async function save() {
@@ -144,8 +173,8 @@ export function BracketBoard({
                 const sc = scores[m.id];
                 return (
                   <div key={m.id} className="mb" data-mb={m.number}>
-                    <Seat teamId={hId} placeholder={m.home?.name ?? m.homeLabel} team={hId ? teamById.get(hId) : undefined} picked={!!hId && winners[m.number] === hId} editable={editable} onClick={() => pick(m.number, hId)} />
-                    <Seat teamId={aId} placeholder={m.away?.name ?? m.awayLabel} team={aId ? teamById.get(aId) : undefined} picked={!!aId && winners[m.number] === aId} editable={editable} onClick={() => pick(m.number, aId)} />
+                    <Seat teamId={hId} placeholder={slotLabel(m.sourceHomeNum, m.home?.name ?? m.homeLabel)} team={hId ? teamById.get(hId) : undefined} picked={!!hId && winners[m.number] === hId} editable={editable && !m.locked} onClick={() => pick(m.number, hId)} />
+                    <Seat teamId={aId} placeholder={slotLabel(m.sourceAwayNum, m.away?.name ?? m.awayLabel)} team={aId ? teamById.get(aId) : undefined} picked={!!aId && winners[m.number] === aId} editable={editable && !m.locked} onClick={() => pick(m.number, aId)} />
                     {bothKnown && (
                       <div className="bscore">
                         {editable && !m.locked ? (

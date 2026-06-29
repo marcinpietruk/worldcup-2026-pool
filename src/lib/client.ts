@@ -44,7 +44,7 @@ export type SettingsDTO = {
   knockoutStart: string | null;
   bonusLocked: boolean;
   bracketOpen: boolean;
-  bracketStatus: "PENDING_GROUPS" | "OPEN" | "CLOSED";
+  bracketStatus: "PENDING_GROUPS" | "OPEN";
 };
 
 export type MeDTO = {

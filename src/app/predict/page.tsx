@@ -257,17 +257,17 @@ function BracketTab({ state, onSaved }: { state: StateResponse; onSaved: () => P
 
   return (
     <div className="stack">
-      <SectionTitle sub="Pick who advances and predict each tie's score. ⭐ one joker per round (R32→SF) doubles a tie's points.">
+      <SectionTitle sub="Pick who advances and predict each tie's score — each tie locks at its own kickoff, so you can keep editing the rounds that haven't started. ⭐ one joker per round (R32→SF) doubles a tie's points.">
         Knockout bracket
       </SectionTitle>
       {status === "PENDING_GROUPS" && (
         <Message kind="info">
           🔒 The bracket opens once the group stage is over
           {state.settings.groupStageEnd ? ` (around ${new Date(state.settings.groupStageEnd).toLocaleDateString()})` : ""} —
-          the 32 qualified teams drop in, then you advance them and call the scores.
+          the 32 qualified teams drop in, then you advance them and call the scores. After that, each tie stays editable
+          right up to its own kickoff.
         </Message>
       )}
-      {status === "CLOSED" && <Message kind="info">🔒 Bracket picks are locked — the knockouts have started.</Message>}
       <Card><div className="card__body"><BracketBoard matches={state.matches} saved={state.me?.bracket ?? {}} predictions={state.me?.predictions ?? {}} editable={editable} jokerIds={jokerIds} onToggleJoker={toggleJoker} onSave={handleSave} /></div></Card>
       <p className="muted center" style={{ fontSize: 12 }}>
         Knockout ties score just like the group stage — {state.settings.pointsExact} pts exact / {state.settings.pointsResult} pt result. No bonus for picking who advances; your ⭐ joker still doubles a tie.

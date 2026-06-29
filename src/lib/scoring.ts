@@ -23,19 +23,19 @@ export function isBonusLocked(
   return now.getTime() >= new Date(settings.tournamentStart).getTime();
 }
 
-export type BracketStatus = "PENDING_GROUPS" | "OPEN" | "CLOSED";
+export type BracketStatus = "PENDING_GROUPS" | "OPEN";
 
-// Bracket picks are fillable only once the group stage is over (so you choose
-// knockout teams knowing who qualified) and until the first knockout kicks off.
+// Bracket advancement picks open once the group stage is over (so you choose
+// knockout teams knowing who qualified). From then on the board behaves like the
+// group stage: each tie stays editable until its OWN kickoff (enforced per-match,
+// client- and server-side). There is no global close at the first knockout.
 export function bracketWindow(
-  settings: Pick<Settings, "groupStageEnd" | "knockoutStart">,
+  settings: Pick<Settings, "groupStageEnd">,
   now = new Date(),
 ): { open: boolean; status: BracketStatus } {
   const t = now.getTime();
   const end = settings.groupStageEnd ? new Date(settings.groupStageEnd).getTime() : null;
-  const ko = settings.knockoutStart ? new Date(settings.knockoutStart).getTime() : null;
   if (end != null && t < end) return { open: false, status: "PENDING_GROUPS" };
-  if (ko != null && t >= ko) return { open: false, status: "CLOSED" };
   return { open: true, status: "OPEN" };
 }
 

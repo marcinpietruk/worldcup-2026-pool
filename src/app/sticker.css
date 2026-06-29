@@ -343,7 +343,8 @@ a { color: inherit; text-decoration: none; }
 .bcol { display: flex; flex-direction: column; justify-content: space-around; width: 158px; flex: none; }
 .bcol.champ-col { width: 132px; justify-content: center; }
 .bcol__h { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 11px;
-  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin-bottom: 12px; }
+  text-transform: uppercase; letter-spacing: .06em; color: var(--ink); margin-bottom: 14px;
+  padding-bottom: 7px; border-bottom: var(--bd-thin); }
 .mb { background: var(--surface); border: var(--bd); border-radius: var(--r-sm); box-shadow: var(--sh-sm);
   position: relative; margin: 7px 22px 7px 0; min-width: 0; z-index: 1; }
 .bseat { display: flex; align-items: center; gap: 7px; padding: 7px 9px; min-width: 0; width: 100%;

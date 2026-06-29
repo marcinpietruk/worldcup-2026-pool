@@ -74,23 +74,20 @@ test("parseApiFixture: knockout fixture with aliases, not started", () => {
   assert.equal(f.status, "SCHEDULED");
 });
 
-test("bracketWindow: opens after groups, closes at knockouts", () => {
-  const settings = {
-    groupStageEnd: new Date("2026-06-27T22:00:00Z"),
-    knockoutStart: new Date("2026-06-28T19:00:00Z"),
-  };
+test("bracketWindow: opens after groups and stays open (per-tie locking)", () => {
+  const settings = { groupStageEnd: new Date("2026-06-27T22:00:00Z") };
   // Before the group stage is over -> not fillable yet.
   let w = bracketWindow(settings, new Date("2026-06-04T00:00:00Z"));
   assert.equal(w.open, false);
   assert.equal(w.status, "PENDING_GROUPS");
-  // In the window (groups done, knockouts not started) -> open.
+  // Groups done -> open.
   w = bracketWindow(settings, new Date("2026-06-28T08:00:00Z"));
   assert.equal(w.open, true);
   assert.equal(w.status, "OPEN");
-  // Knockouts have started -> closed.
+  // Knockouts under way -> still open; individual ties lock at their own kickoff.
   w = bracketWindow(settings, new Date("2026-06-29T00:00:00Z"));
-  assert.equal(w.open, false);
-  assert.equal(w.status, "CLOSED");
+  assert.equal(w.open, true);
+  assert.equal(w.status, "OPEN");
 });
 
 test("parseFdMatch: football-data.org group + knockout", () => {

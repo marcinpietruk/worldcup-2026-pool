@@ -37,8 +37,8 @@ export default function RulesPage() {
           </Rule>
           <Rule Icon={Lock} title="Locking">
             Match picks lock at kickoff. The bracket opens once the group stage is over
-            { s.groupStageEnd ? ` (around ${new Date(s.groupStageEnd).toLocaleDateString()})` : "" } and locks at the first
-            knockout. Bonuses lock at the first kickoff. All enforced on the server.
+            { s.groupStageEnd ? ` (around ${new Date(s.groupStageEnd).toLocaleDateString()})` : "" }; from then each tie
+            locks at its own kickoff, just like the group stage. Bonuses lock at the first kickoff. All enforced on the server.
           </Rule>
           <Rule Icon={Crown} title="Winning">
             Most points wins. Ties broken by most exact scores, then most correct results.

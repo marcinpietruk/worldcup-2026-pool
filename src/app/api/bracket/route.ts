@@ -4,12 +4,16 @@ import { ok, bad, serverError } from "@/lib/http";
 import { verifyPin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { bracketWindow } from "@/lib/scoring";
+import { getMatchDTOs } from "@/lib/serialize";
+import { bracketRounds, reconstructWinners, normalizeWinners, deriveRoundPicks } from "@/lib/bracket";
 import type { BracketRound } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 // Max teams a player may name as reaching each round.
 const LIMITS: Record<string, number> = { R16: 16, QF: 8, SF: 4, FINAL: 2, CHAMPION: 1 };
+const ROUNDS = ["R16", "QF", "SF", "FINAL", "CHAMPION"] as const;
+const emptySets = (): Record<string, string[]> => ({ R16: [], QF: [], SF: [], FINAL: [], CHAMPION: [] });
 
 const schema = z.object({
   playerId: z.string().min(1),
@@ -33,14 +37,8 @@ export async function POST(req: Request) {
     if (!auth.ok) return bad(auth.error, auth.status);
 
     const settings = await getSettings();
-    const win = bracketWindow(settings);
-    if (!win.open) {
-      return bad(
-        win.status === "PENDING_GROUPS"
-          ? "The bracket opens once the group stage is over."
-          : "Bracket picks are locked — the knockout stage has started.",
-        403,
-      );
+    if (!bracketWindow(settings).open) {
+      return bad("The bracket opens once the group stage is over.", 403);
     }
 
     // Validate team ids exist.
@@ -50,11 +48,32 @@ export async function POST(req: Request) {
       if (count !== allIds.length) return bad("One or more teams are invalid.");
     }
 
+    // Per-tie locking, like the group stage: a tie's "who advances" pick freezes
+    // at its OWN kickoff. Rebuild the bracket from the player's *existing* picks
+    // for any tie that has kicked off, and from the *incoming* picks otherwise, so
+    // a started tie can't be rewritten even via a hand-crafted request.
+    const now = new Date();
+    const rounds = bracketRounds(await getMatchDTOs(now));
+    const existingRows = await prisma.bracketPrediction.findMany({ where: { playerId } });
+    const existingSets = emptySets();
+    for (const r of existingRows) existingSets[r.round]?.push(r.teamId);
+
+    const existingWinners = reconstructWinners(existingSets, rounds);
+    const incomingWinners = reconstructWinners(picks, rounds);
+    const merged: Record<number, string> = {};
+    for (const round of rounds) {
+      for (const m of round.matches) {
+        const winner = m.locked ? existingWinners[m.number] : incomingWinners[m.number];
+        if (winner) merged[m.number] = winner;
+      }
+    }
+    const finalPicks = deriveRoundPicks(normalizeWinners(merged, rounds), rounds);
+
     // Replace this player's bracket picks atomically.
     await prisma.$transaction([
       prisma.bracketPrediction.deleteMany({ where: { playerId } }),
-      ...Object.entries(picks).flatMap(([round, ids]) =>
-        [...new Set(ids as string[])].slice(0, LIMITS[round]).map((teamId) =>
+      ...ROUNDS.flatMap((round) =>
+        [...new Set(finalPicks[round] ?? [])].slice(0, LIMITS[round]).map((teamId) =>
           prisma.bracketPrediction.create({
             data: { playerId, round: round as BracketRound, teamId },
           }),
