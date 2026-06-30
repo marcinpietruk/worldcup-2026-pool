@@ -55,19 +55,32 @@ export function bracketRounds(matches: MatchDTO[]): Round[] {
   }));
 }
 
-// The two team ids that can fill a match's slots, given winners picked so far.
-// R32 slots come from the resolved fixture; later slots from upstream winners.
+// The two team ids that can fill a match's slots. Once the real team is known it
+// wins — R32 sides come from the group standings, and later sides are filled by
+// the ACTUAL winner of the feeding tie as soon as it's resolved (the sync writes
+// it onto the next-round fixture). Until a feeding tie is decided for real, the
+// slot falls back to the player's predicted winner of it. So the board tracks
+// reality as results land — if your pick loses, the real team takes the slot and
+// you predict that next game — while staying playable ahead of the results.
 export function candidates(
   m: MatchDTO,
   winners: Record<number, string>,
 ): [string | null, string | null] {
-  if (m.sourceHomeNum == null && m.sourceAwayNum == null) {
-    return [m.home?.id ?? null, m.away?.id ?? null];
+  const slot = (real: string | null | undefined, sourceNum: number | null): string | null =>
+    real ?? (sourceNum != null ? winners[sourceNum] ?? null : null);
+  return [slot(m.home?.id, m.sourceHomeNum), slot(m.away?.id, m.sourceAwayNum)];
+}
+
+// The team that ACTUALLY advanced from a finished knockout tie: the explicit
+// winner when set (covers penalty shootouts, where full time is level), else the
+// higher full-time score. Null while the tie is unresolved.
+export function actualWinner(m: MatchDTO): string | null {
+  if (m.status !== "FINISHED") return null;
+  if (m.winnerTeamId) return m.winnerTeamId;
+  if (m.homeScore != null && m.awayScore != null && m.homeScore !== m.awayScore && m.home && m.away) {
+    return m.homeScore > m.awayScore ? m.home.id : m.away.id;
   }
-  return [
-    m.sourceHomeNum != null ? winners[m.sourceHomeNum] ?? null : null,
-    m.sourceAwayNum != null ? winners[m.sourceAwayNum] ?? null : null,
-  ];
+  return null;
 }
 
 // Winners derived purely from the predicted scores: the higher-scored side of

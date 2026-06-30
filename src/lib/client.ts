@@ -22,6 +22,7 @@ export type MatchDTO = {
   awayLabel: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  winnerTeamId: string | null; // explicit advancer (covers penalty shootouts)
   statusDetail: string | null; // live clock ("27'", "HT") for in-play matches
   events: MatchEventDTO[] | null; // goal/card timeline
   venue: string | null;

@@ -351,8 +351,14 @@ a { color: inherit; text-decoration: none; }
   position: relative; margin: 8px 26px 8px 0; min-width: 0; z-index: 1; }
 .bmatch__hd { display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 5px 10px; font-size: 10.5px; font-weight: 700; color: var(--ink-faint); border-bottom: var(--bd-thin); }
+.bmatch__hl { display: flex; align-items: center; gap: 6px; min-height: 12px; }
 .bmatch__status { color: var(--grass); font-weight: 800; letter-spacing: .03em; min-height: 12px; }
 .bmatch__num { white-space: nowrap; }
+.bmatch__res { display: inline-flex; align-items: center; gap: 2px; padding: 1px 6px 1px 4px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.bmatch__res .ic-svg { width: 11px; height: 11px; }
+.bmatch__res.is-hit { color: var(--good-ink); background: color-mix(in srgb, var(--good-ink) 14%, transparent); }
+.bmatch__res.is-miss { color: var(--bad-ink); background: color-mix(in srgb, var(--bad-ink) 14%, transparent); }
 .brow { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; min-height: 30px; border-radius: 6px; }
 .brow.is-win { background: color-mix(in srgb, var(--sun) 55%, transparent); }
 .brow__team { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;

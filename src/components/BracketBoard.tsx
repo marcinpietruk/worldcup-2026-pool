@@ -3,13 +3,14 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MatchDTO, TeamDTO } from "@/lib/client";
 import {
+  actualWinner,
   bracketRounds,
   candidates,
   deriveRoundPicks,
   winnersFromScores,
   type KoStage,
 } from "@/lib/bracket";
-import { Trophy, Star, Shield } from "lucide-react";
+import { Trophy, Star, Shield, Check, X } from "lucide-react";
 import { Flag } from "./Flag";
 import { Button } from "./ui";
 import { formatKickoff } from "@/lib/format";
@@ -158,10 +159,23 @@ export function BracketBoard({
                 // Both scores filled but level: no one advances (a knockout can't
                 // end level), so flag it instead of silently leaving the next slot TBD.
                 const isDraw = bothKnown && sc?.home !== "" && sc?.away !== "" && sc?.home != null && sc?.away != null && Number(sc.home) === Number(sc.away);
+                // Once the tie is decided for real, mark whether the team you sent
+                // through actually advanced.
+                const realWinner = actualWinner(m);
+                const myPick = winners[m.number] ?? null;
+                const advanceResult = realWinner && myPick ? (realWinner === myPick ? "hit" : "miss") : null;
                 return (
                   <div key={m.id} className="bmatch" data-mb={m.number}>
                     <div className="bmatch__hd">
-                      <span className="bmatch__status">{statusTag}</span>
+                      <span className="bmatch__hl">
+                        <span className="bmatch__status">{statusTag}</span>
+                        {advanceResult && (
+                          <span className={`bmatch__res is-${advanceResult}`} title={advanceResult === "hit" ? "Your pick advanced" : "Your pick was knocked out"}>
+                            {advanceResult === "hit" ? <Check className="ic-svg" /> : <X className="ic-svg" />}
+                            {advanceResult === "hit" ? "Through" : "Out"}
+                          </span>
+                        )}
+                      </span>
                       <span className="bmatch__num">Match {m.number}</span>
                     </div>
                     <Row

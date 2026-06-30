@@ -6,7 +6,7 @@ import { parseFdMatch } from "../src/lib/providers/footballData";
 import { canonicalTeamName, normalizeTeamName, flagFor } from "../src/lib/teams";
 import { pointsForPrediction, bracketWindow } from "../src/lib/scoring";
 import { computeStandings } from "../src/lib/standings";
-import { bracketRounds, candidates, deriveRoundPicks, reconstructWinners, normalizeWinners, winnersFromScores } from "../src/lib/bracket";
+import { actualWinner, bracketRounds, candidates, deriveRoundPicks, reconstructWinners, normalizeWinners, winnersFromScores } from "../src/lib/bracket";
 import type { MatchDTO } from "../src/lib/client";
 
 test("parseKickoffUtc converts local-with-offset to UTC", () => {
@@ -147,7 +147,7 @@ test("computeStandings ranks a group by points then GD", () => {
     ({
       id: `${h}${a}`, number: 0, stage: "GROUP", group: "A", matchday: 1, kickoff: "2026-06-11T19:00:00Z",
       status: "FINISHED", sourceHomeNum: null, sourceAwayNum: null, home: team(h), away: team(a),
-      homeLabel: null, awayLabel: null, homeScore: hs, awayScore: as, statusDetail: null,
+      homeLabel: null, awayLabel: null, homeScore: hs, awayScore: as, winnerTeamId: null, statusDetail: null,
       events: null, venue: null, attendance: null, homeRecord: null, awayRecord: null,
       locked: true,
     }) as const;
@@ -208,6 +208,44 @@ test("bracket: derive picks, reconstruct, and normalize", () => {
     rounds,
   );
   assert.deepEqual(withDraw, { 102: "D" });
+});
+
+test("candidates: the actual result fills the next round over the predicted winner", () => {
+  const team = (id: string) => ({ id, name: id, flag: null, code: null, iso2: null });
+  const mk = (num: number, stage: string, home: string | null, away: string | null, sh: number | null, sa: number | null): MatchDTO =>
+    ({
+      id: `m${num}`, number: num, stage, group: null, matchday: null, kickoff: "2026-07-01T00:00:00Z",
+      status: "SCHEDULED", sourceHomeNum: sh, sourceAwayNum: sa,
+      home: home ? team(home) : null, away: away ? team(away) : null,
+      homeLabel: null, awayLabel: null, homeScore: null, awayScore: null, locked: false,
+    }) as MatchDTO;
+
+  // R32 #73 finished: Morocco beat Netherlands for real, so the sync seeded MAR
+  // into the home slot of the R16 tie it feeds — even though this player had
+  // predicted NED to win #73.
+  const winners = { 73: "NED" };
+  const resolved = mk(89, "R16", "MAR", null, 73, 74);
+  assert.deepEqual(candidates(resolved, winners), ["MAR", null]); // real team wins the slot
+
+  // A sibling R16 tie whose feeders aren't resolved yet still falls back to the
+  // player's predicted winner of #73.
+  const pending = mk(90, "R16", null, null, 73, 74);
+  assert.deepEqual(candidates(pending, winners), ["NED", null]);
+});
+
+test("actualWinner: scoreline, penalty shootout, and unresolved ties", () => {
+  const team = (id: string) => ({ id, name: id, flag: null, code: null, iso2: null });
+  const mk = (status: string, home: string, away: string, hs: number | null, as: number | null, winnerTeamId: string | null): MatchDTO =>
+    ({
+      id: "m", number: 73, stage: "R32", group: null, matchday: null, kickoff: "2026-07-01T00:00:00Z",
+      status, sourceHomeNum: null, sourceAwayNum: null, home: team(home), away: team(away),
+      homeLabel: null, awayLabel: null, homeScore: hs, awayScore: as, winnerTeamId, locked: true,
+    }) as MatchDTO;
+
+  assert.equal(actualWinner(mk("FINISHED", "MAR", "NED", 1, 0, null)), "MAR"); // decided on the scoreline
+  assert.equal(actualWinner(mk("FINISHED", "MAR", "NED", 1, 1, "NED")), "NED"); // shootout: level, explicit winner
+  assert.equal(actualWinner(mk("FINISHED", "MAR", "NED", 1, 1, null)), null); // level, no winner recorded yet
+  assert.equal(actualWinner(mk("LIVE", "MAR", "NED", 1, 0, null)), null); // not finished
 });
 
 test("bracketRounds orders columns by the tree, not by match number", () => {

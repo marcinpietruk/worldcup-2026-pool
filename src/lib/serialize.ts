@@ -24,6 +24,7 @@ export type MatchDTO = {
   awayLabel: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  winnerTeamId: string | null; // explicit advancer (covers penalty shootouts)
   statusDetail: string | null; // live clock ("27'", "HT") for in-play matches
   events: MatchEvent[] | null; // goal/card timeline
   venue: string | null;
@@ -61,6 +62,7 @@ export function serializeMatch(m: MatchWithTeams, now = new Date()): MatchDTO {
     awayLabel: m.awayLabel,
     homeScore: m.homeScore,
     awayScore: m.awayScore,
+    winnerTeamId: m.winnerTeamId,
     statusDetail: m.statusDetail,
     events: (m.events as unknown as MatchEvent[] | null) ?? null,
     venue: m.venue,
